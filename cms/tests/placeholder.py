@@ -9,25 +9,33 @@ from cms.models.fields import PlaceholderField
 from cms.models.placeholdermodel import Placeholder
 from cms.plugin_pool import plugin_pool
 from cms.plugin_rendering import render_placeholder
-from cms.plugins.link.cms_plugins import LinkPlugin
+from djangocms_link.cms_plugins import LinkPlugin
 from cms.utils.compat.tests import UnittestCompatMixin
 from djangocms_text_ckeditor.cms_plugins import TextPlugin
 from djangocms_text_ckeditor.models import Text
+from djangocms_text_ckeditor.utils import plugin_to_tag
 from cms.test_utils.fixtures.fakemlng import FakemlngFixtures
 from cms.test_utils.project.fakemlng.models import Translations
-from cms.test_utils.project.placeholderapp.models import (Example1, TwoPlaceholderExample, MultilingualExample1)
+from cms.test_utils.project.placeholderapp.models import (
+    Example1,
+    TwoPlaceholderExample,
+    DynamicPlaceholderSlotExample,
+    MultilingualExample1
+)
 from cms.test_utils.testcases import CMSTestCase
 from cms.test_utils.util.context_managers import (SettingsOverride, UserLoginContext)
 from cms.test_utils.util.mock import AttributeObject
 from cms.utils.compat.dj import force_unicode
-from cms.utils.placeholder import PlaceholderNoAction, MLNGPlaceholderActions
+from cms.utils.placeholder import PlaceholderNoAction, MLNGPlaceholderActions, get_placeholder_conf
 from cms.utils.plugins import get_placeholders
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import User, Permission
 from cms.test_utils.project.objectpermissionsapp.models import UserObjectPermission
 from django.contrib.messages.storage import default_storage
+from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import reverse
+from django.db.models import Model
 from django.http import HttpResponseForbidden, HttpResponse
 from django.template import TemplateSyntaxError, Template
 from django.template.context import Context, RequestContext
@@ -194,7 +202,7 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         self.assertRaises(TemplateSyntaxError, get_placeholders, 'placeholder_tests/test_eleven.html')
 
     def test_placeholder_tag(self):
-        template = Template("{% load placeholder_tags %}{% render_placeholder placeholder %}")
+        template = Template("{% load cms_tags %}{% render_placeholder placeholder %}")
         ctx = Context()
         self.assertEqual(template.render(ctx), "")
         request = self.get_request('/')
@@ -212,7 +220,7 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         self.assertEqual(template.render(rctx).strip(), "test")
 
     def test_placeholder_tag_language(self):
-        template = Template("{% load placeholder_tags %}{% render_placeholder placeholder language language %}")
+        template = Template("{% load cms_tags %}{% render_placeholder placeholder language language %}")
         placeholder = Placeholder.objects.create(slot="test")
         add_plugin(placeholder, "TextPlugin", 'en', body="English")
         add_plugin(placeholder, "TextPlugin", 'de', body="Deutsch")
@@ -221,8 +229,49 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         rctx['placeholder'] = placeholder
         rctx['language'] = 'en'
         self.assertEqual(template.render(rctx).strip(), "English")
+        del(placeholder._plugins_cache)
         rctx['language'] = 'de'
         self.assertEqual(template.render(rctx).strip(), "Deutsch")
+
+    def test_get_placeholder_conf(self):
+        TEST_CONF = {
+            'main': {
+                'name': 'main content',
+                'plugins': ['TextPlugin', 'LinkPlugin'],
+                'default_plugins':[
+                    {
+                        'plugin_type':'TextPlugin', 
+                        'values':{
+                            'body':'<p>Some default text</p>'
+                        },
+                    },
+                ],
+            },
+            'layout/home.html main': {
+                'name': u'main content with FilerImagePlugin and limit',
+                'plugins': ['TextPlugin', 'FilerImagePlugin', 'LinkPlugin',],
+                'inherit':'main',
+                'limits': {'global': 1,},
+            },
+            'layout/other.html main': {
+                'name': u'main content with FilerImagePlugin and no limit',
+                'inherit':'layout/home.html main',
+                'limits': {},
+            },
+        }
+        with SettingsOverride(CMS_PLACEHOLDER_CONF=TEST_CONF):
+            #test no inheritance
+            returned = get_placeholder_conf('plugins', 'main')
+            self.assertEqual(returned, TEST_CONF['main']['plugins'])
+            #test no inherited value with inheritance enabled
+            returned = get_placeholder_conf('plugins', 'main', 'layout/home.html')
+            self.assertEqual(returned, TEST_CONF['layout/home.html main']['plugins'])
+            #test direct inherited value
+            returned = get_placeholder_conf('plugins', 'main', 'layout/other.html')
+            self.assertEqual(returned, TEST_CONF['layout/home.html main']['plugins'])
+            #test grandparent inherited value
+            returned = get_placeholder_conf('default_plugins', 'main', 'layout/other.html')
+            self.assertEqual(returned, TEST_CONF['main']['default_plugins'])
 
     def test_placeholder_context_leaking(self):
         TEST_CONF = {'test': {'extra_context': {'width': 10}}}
@@ -251,6 +300,44 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
     def test_placeholder_field_no_related_name(self):
         self.assertRaises(ValueError, PlaceholderField, 'placeholder', related_name='+')
 
+    def test_placeholder_field_valid_slotname(self):
+        self.assertRaises(ImproperlyConfigured, PlaceholderField, 10)
+
+    def test_placeholder_field_dynamic_slot_generation(self):
+        instance = DynamicPlaceholderSlotExample.objects.create(char_1='slot1', char_2='slot2')
+        self.assertEquals(instance.char_1, instance.placeholder_1.slot)
+        self.assertEquals(instance.char_2, instance.placeholder_2.slot)
+
+    def test_placeholder_field_dynamic_slot_update(self):
+        instance = DynamicPlaceholderSlotExample.objects.create(char_1='slot1', char_2='slot2')
+
+        # Plugin counts
+        old_placeholder_1_plugin_count = len(instance.placeholder_1.get_plugins())
+        old_placeholder_2_plugin_count = len(instance.placeholder_2.get_plugins())
+
+        # Switch around the slot names
+        instance.char_1, instance.char_2 = instance.char_2, instance.char_1
+
+        # Store the ids before save, to test that a new placeholder is NOT created.
+        placeholder_1_id = instance.placeholder_1.pk
+        placeholder_2_id = instance.placeholder_2.pk
+
+        # Save instance
+        instance.save()
+
+        current_placeholder_1_plugin_count = len(instance.placeholder_1.get_plugins())
+        current_placeholder_2_plugin_count = len(instance.placeholder_2.get_plugins())
+
+        # Now test that the placeholder slots have changed
+        self.assertEquals(instance.char_2, 'slot1')
+        self.assertEquals(instance.char_1, 'slot2')
+        # Test that a new placeholder was never created
+        self.assertEquals(instance.placeholder_1.pk, placeholder_1_id)
+        self.assertEquals(instance.placeholder_2.pk, placeholder_2_id)
+        # And test the plugin counts remain the same
+        self.assertEqual(old_placeholder_1_plugin_count, current_placeholder_1_plugin_count)
+        self.assertEqual(old_placeholder_2_plugin_count, current_placeholder_2_plugin_count)
+
     def test_plugins_language_fallback(self):
         """ Tests language_fallback placeholder configuration """
         page_en = create_page('page_en', 'col_two.html', 'en')
@@ -276,8 +363,9 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         self.assertRegexpMatches(content_en, "^en body$")
 
         ## Deutsch page should have no text
-        content_de = render_placeholder(placeholder_en, context_de)
+        content_de = render_placeholder(placeholder_de, context_de)
         self.assertNotRegex(content_de, "^en body$")
+        self.assertEqual(len(content_de), 0)
 
         conf = {
             'col_left': {
@@ -286,13 +374,152 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         }
         with SettingsOverride(CMS_PLACEHOLDER_CONF=conf):
             ## Deutsch page should have no text
-            content_de = render_placeholder(placeholder_en, context_de)
+            del(placeholder_de._plugins_cache)
+            content_de = render_placeholder(placeholder_de, context_de)
             self.assertRegexpMatches(content_de, "^en body$")
 
+            # remove the cached plugins instances
+            del(placeholder_de._plugins_cache)
             # Then we add a plugin to check for proper rendering
             add_plugin(placeholder_de, TextPlugin, 'de', body='de body')
             content_de = render_placeholder(placeholder_de, context_de)
             self.assertRegexpMatches(content_de, "^de body$")
+
+    def test_plugins_non_default_language_fallback(self):
+        """ Tests language_fallback placeholder configuration """
+        page_en = create_page('page_en', 'col_two.html', 'en')
+        title_de = create_title("de", "page_de", page_en)
+        placeholder_en = page_en.placeholders.get(slot='col_left')
+        placeholder_de = page_en.placeholders.get(slot='col_left')
+        add_plugin(placeholder_de, TextPlugin, 'de', body='de body')
+
+        class NoPushPopContext(Context):
+            def push(self):
+                pass
+
+            pop = push
+
+        context_en = NoPushPopContext()
+        context_en['request'] = self.get_request(language="en", page=page_en)
+        context_de = NoPushPopContext()
+        context_de['request'] = self.get_request(language="de", page=page_en)
+
+        # First test the default (non-fallback) behavior)
+        ## Deutsch page should have the text plugin
+        content_de = render_placeholder(placeholder_en, context_de)
+        self.assertRegexpMatches(content_de, "^de body$")
+        del(placeholder_en._plugins_cache)
+        ## English page should have no text
+        content_en = render_placeholder(placeholder_en, context_en)
+        self.assertNotRegex(content_en, "^de body$")
+        self.assertEqual(len(content_en), 0)
+        del(placeholder_en._plugins_cache)
+        conf = {
+            'col_left': {
+                'language_fallback': True,
+            },
+        }
+        with SettingsOverride(CMS_PLACEHOLDER_CONF=conf):
+            ## English page should have deutsch text
+            content_en = render_placeholder(placeholder_en, context_en)
+            self.assertRegexpMatches(content_en, "^de body$")
+
+            # remove the cached plugins instances
+            del(placeholder_en._plugins_cache)
+            # Then we add a plugin to check for proper rendering
+            add_plugin(placeholder_en, TextPlugin, 'en', body='en body')
+            content_en = render_placeholder(placeholder_en, context_en)
+            self.assertRegexpMatches(content_en, "^en body$")
+
+    def test_plugins_prepopulate(self):
+        """ Tests prepopulate placeholder configuration """
+
+        class NoPushPopContext(Context):
+            def push(self):
+                pass
+
+            pop = push
+
+        conf = {
+            'col_left': {
+                'default_plugins' : [
+                    {
+                        'plugin_type':'TextPlugin', 
+                        'values':{'body':'<p>en default body 1</p>'}, 
+                    },
+                    {
+                        'plugin_type':'TextPlugin', 
+                        'values':{'body':'<p>en default body 2</p>'}, 
+                    },
+                ]
+            },
+        }
+        with SettingsOverride(CMS_PLACEHOLDER_CONF=conf):
+            page = create_page('page_en', 'col_two.html', 'en')
+            placeholder = page.placeholders.get(slot='col_left')
+            context = NoPushPopContext()
+            context['request'] = self.get_request(language="en", page=page)
+            # Our page should have "en default body 1" AND "en default body 2"
+            content = render_placeholder(placeholder, context)
+            self.assertRegexpMatches(content, "^<p>en default body 1</p>\s*<p>en default body 2</p>$")
+
+
+    def test_plugins_children_prepopulate(self):
+        """
+        Validate a default textplugin with a nested default link plugin
+        """
+        
+        class NoPushPopContext(Context):
+            def push(self):
+                pass
+
+            pop = push
+
+        conf = {
+            'col_left': {
+                'default_plugins' : [
+                    {
+                        'plugin_type':'TextPlugin', 
+                        'values':{
+                            'body':'<p>body %(_tag_child_1)s and %(_tag_child_2)s</p>'
+                        },
+                        'children':[
+                            {
+                                'plugin_type':'LinkPlugin',
+                                'values':{
+                                    'name':'django', 
+                                    'url':'https://www.djangoproject.com/'
+                                },
+                            },
+                            {
+                                'plugin_type':'LinkPlugin',
+                                'values':{
+                                    'name':'django-cms', 
+                                    'url':'https://www.django-cms.org'
+                                },
+                            },
+                        ]
+                    },
+                ]
+            },
+        }
+
+        with SettingsOverride(CMS_PLACEHOLDER_CONF=conf):
+            page = create_page('page_en', 'col_two.html', 'en')
+            placeholder = page.placeholders.get(slot='col_left')
+            context = NoPushPopContext()
+            context['request'] = self.get_request(language="en", page=page)
+            render_placeholder(placeholder, context)
+            plugins = placeholder.get_plugins_list()
+            self.assertEqual(len(plugins), 3)
+            self.assertEqual(plugins[0].plugin_type, 'TextPlugin')
+            self.assertEqual(plugins[1].plugin_type, 'LinkPlugin')
+            self.assertEqual(plugins[2].plugin_type, 'LinkPlugin')
+            self.assertTrue(plugins[1].parent == plugins[2].parent and plugins[1].parent == plugins[0])
+            content = render_placeholder(placeholder, context)
+            #Activate the test above when ckeditor will implement notify_on_autoadd_children
+            #self.assertRegexpMatches(content,"^<p>body .*https://www.djangoproject.com/.*https://www.django-cms.org.*</p>$")            
+
 
     def test_placeholder_pk_thousands_format(self):
         page = create_page("page", "nav_playground.html", "en", published=True)
@@ -323,6 +550,54 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
                     response, "'clipboard': '%s'" % format(
                         response.context['request'].toolbar.clipboard.pk, ".",
                         grouping=3, thousand_sep=","))
+
+    def test_placeholder_languages_model(self):
+        """
+        Checks the retrieval of filled languages for a placeholder in a django
+        model
+        """
+        avail_langs = set([u'en', u'de', u'fr'])
+        # Setup instance
+        ex = Example1(
+            char_1='one',
+            char_2='two',
+            char_3='tree',
+            char_4='four'
+        )
+        ex.save()
+        ###
+        # add the test plugin
+        ###
+        for lang in avail_langs:
+            test_plugin = add_plugin(ex.placeholder, u"EmptyPlugin", lang)
+        # reload instance from database
+        ex = Example1.objects.get(pk=ex.pk)
+        #get languages
+        langs = [lang['code'] for lang in ex.placeholder.get_filled_languages()]
+        self.assertEqual(avail_langs, set(langs))
+
+    def test_placeholder_languages_page(self):
+        """
+        Checks the retrieval of filled languages for a placeholder in a django
+        model
+        """
+        avail_langs = set([u'en', u'de', u'fr'])
+        # Setup instances
+        page = create_page('test page', 'col_two.html', u'en')
+        for lang in avail_langs:
+            if lang != u'en':
+                create_title(lang, 'test page %s' % lang, page)
+        placeholder = page.placeholders.get(slot='col_sidebar')
+        ###
+        # add the test plugin
+        ###
+        for lang in avail_langs:
+            test_plugin = add_plugin(placeholder, u"EmptyPlugin", lang)
+        # reload placeholder from database
+        placeholder = page.placeholders.get(slot='col_sidebar')
+        # get languages
+        langs = [lang['code'] for lang in placeholder.get_filled_languages()]
+        self.assertEqual(avail_langs, set(langs))
 
 
 class PlaceholderActionTests(FakemlngFixtures, CMSTestCase):
@@ -751,7 +1026,7 @@ class PlaceholderI18NTest(CMSTestCase):
         user = self._testuser()
         self.client.login(username='test', password='test')
 
-        response = self.client.get('/de/admin/placeholderapp/multilingualexample1/1/')
+        response = self.client.get('/de/admin/placeholderapp/multilingualexample1/%d/' % ex.pk)
         self.assertContains(response, '<input type="hidden" class="language_button selected" name="de" />')
 
 
@@ -766,7 +1041,7 @@ class PlaceholderI18NTest(CMSTestCase):
         user = self._testuser()
         self.client.login(username='test', password='test')
 
-        response = self.client.get('/de/admin/placeholderapp/example1/1/')
+        response = self.client.get('/de/admin/placeholderapp/example1/%d/' % ex.pk)
         self.assertNotContains(response, '<input type="hidden" class="language_button selected" name="de" />')
 
     def test_placeholder_tabs(self):
@@ -780,7 +1055,7 @@ class PlaceholderI18NTest(CMSTestCase):
         user = self._testuser()
         self.client.login(username='test', password='test')
 
-        response = self.client.get('/de/admin/placeholderapp/twoplaceholderexample/1/')
+        response = self.client.get('/de/admin/placeholderapp/twoplaceholderexample/%d/' % ex.pk)
         self.assertNotContains(response,
                                """<input type="button" onclick="trigger_lang_button(this,'./?language=en');" class="language_button selected" id="debutton" name="en" value="English">""")
 

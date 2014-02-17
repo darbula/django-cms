@@ -73,11 +73,13 @@ Extending the CMS
     :numbered:
 
     extending_cms/extending_examples
+    extending_cms/extending_page_title
     extending_cms/custom_plugins
     extending_cms/app_integration
     extending_cms/api_references
     extending_cms/placeholders
     extending_cms/toolbar
+    extending_cms/frontend_models
     extending_cms/searchdocs
     extending_cms/fields
     extending_cms/testing
@@ -95,7 +97,6 @@ Concepts
     concepts/menu_system
     concepts/publishing
     concepts/multiple_languages
-    concepts/stacks
 
 
 **************************

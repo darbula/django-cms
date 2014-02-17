@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 from datetime import date
-from cms.utils.compat.metaclasses import with_metaclass
+import json
 
-from django.core.urlresolvers import reverse, NoReverseMatch
-from django.utils.safestring import mark_safe
 import os
 import warnings
+from cms.exceptions import DontUsePageAttributeWarning
+from cms.models.placeholdermodel import Placeholder
+from cms.plugin_rendering import PluginContext, render_plugin
+from cms.utils import get_cms_setting
+from cms.utils.compat import DJANGO_1_5
+from cms.utils.compat.dj import force_unicode, python_2_unicode_compatible
+from cms.utils.compat.metaclasses import with_metaclass
+from cms.utils.helpers import reversion_register
+from django.core.urlresolvers import reverse, NoReverseMatch
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 from django.db.models.base import model_unpickle
 from django.db.models.query_utils import DeferredAttribute
-from django.utils import timezone, simplejson
+from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
-from cms.exceptions import DontUsePageAttributeWarning
-from cms.models.placeholdermodel import Placeholder
-from cms.plugin_rendering import PluginContext, render_plugin
-from cms.utils.helpers import reversion_register
-from cms.utils.compat.dj import force_unicode, python_2_unicode_compatible
-from cms.utils import get_cms_setting
 from mptt.models import MPTTModel, MPTTModelBase
 
 
@@ -51,18 +53,6 @@ class PluginModelBase(MPTTModelBase):
         # set a new BoundRenderMeta to prevent leaking of state
         new_class._render_meta = BoundRenderMeta(meta)
 
-        # turn 'myapp_mymodel' into 'cmsplugin_mymodel' by removing the
-        # 'myapp_' bit from the db_table name.
-        if [base for base in bases if isinstance(base, PluginModelBase)]:
-            splitter = '%s_' % new_class._meta.app_label
-
-            if splitter in new_class._meta.db_table:
-                splitted = new_class._meta.db_table.split(splitter, 1)
-                table_name = 'cmsplugin_%s' % splitted[1]
-            else:
-                table_name = new_class._meta.db_table
-            new_class._meta.db_table = table_name
-
         return new_class
 
 
@@ -91,6 +81,7 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
     rght = models.PositiveIntegerField(db_index=True, editable=False)
     tree_id = models.PositiveIntegerField(db_index=True, editable=False)
     child_plugin_instances = None
+    translatable_content_excluded_fields = []
 
     class Meta:
         app_label = 'cms'
@@ -151,16 +142,19 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
 
         return plugin_pool.get_plugin(self.plugin_type)
 
-    def get_plugin_instance(self, admin=None):
+    def get_plugin_class_instance(self, admin=None):
         plugin_class = self.get_plugin_class()
-        plugin = plugin_class(plugin_class.model,
-                              admin) # needed so we have the same signature as the original ModelAdmin
+        # needed so we have the same signature as the original ModelAdmin
+        return plugin_class(plugin_class.model, admin)
+
+    def get_plugin_instance(self, admin=None):
+        plugin = self.get_plugin_class_instance(admin)
         if hasattr(self, "_inst"):
             return self._inst, plugin
         if plugin.model != self.__class__: # and self.__class__ == CMSPlugin:
             # (if self is actually a subclass, getattr below would break)
             try:
-                instance = plugin_class.model.objects.get(cmsplugin_ptr=self)
+                instance = plugin.model.objects.get(cmsplugin_ptr=self)
                 instance._render_meta = self._render_meta
             except (AttributeError, ObjectDoesNotExist):
                 instance = None
@@ -172,7 +166,7 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
     def render_plugin(self, context=None, placeholder=None, admin=False, processors=None):
         instance, plugin = self.get_plugin_instance()
         if instance and not (admin and not plugin.admin_preview):
-            if not isinstance(placeholder, Placeholder):
+            if not placeholder or not isinstance(placeholder, Placeholder):
                 placeholder = instance.placeholder
             placeholder_slot = placeholder.slot
             current_app = context.current_app if context else None
@@ -190,6 +184,16 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
             else:
                 template = None
             return render_plugin(context, instance, placeholder, template, processors, context.current_app)
+        else:
+            from cms.middleware.toolbar import toolbar_plugin_processor
+
+            if processors and toolbar_plugin_processor in processors:
+                if not placeholder:
+                    placeholder = self.placeholder
+                current_app = context.current_app if context else None
+                context = PluginContext(context, self, placeholder, current_app=current_app)
+                template = None
+                return render_plugin(context, self, placeholder, template, processors, context.current_app)
         return ""
 
     def get_media_path(self, filename):
@@ -231,7 +235,10 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
 
     def save(self, no_signals=False, *args, **kwargs):
         if no_signals:  # ugly hack because of mptt
-            super(CMSPlugin, self).save_base(cls=self.__class__)
+            if DJANGO_1_5:
+                super(CMSPlugin, self).save_base(cls=self.__class__)
+            else:
+                super(CMSPlugin, self).save_base()
         else:
             super(CMSPlugin, self).save()
 
@@ -259,13 +266,18 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
         # we assign a parent to our new plugin
         parent_cache[self.pk] = new_plugin
         if self.parent:
-            new_plugin.parent = parent_cache[self.parent_id]
+            parent = parent_cache[self.parent_id]
+            parent = CMSPlugin.objects.get(pk=parent.pk)
+            new_plugin.parent = parent
         new_plugin.level = None
         new_plugin.language = target_language
         new_plugin.plugin_type = self.plugin_type
         new_plugin.position = self.position
         new_plugin.save()
         if plugin_instance:
+            if plugin_instance.__class__ == CMSPlugin:
+                #get a new instance so references do not get mixed up
+                plugin_instance = CMSPlugin.objects.get(pk=plugin_instance.pk)
             plugin_instance.pk = new_plugin.pk
             plugin_instance.id = new_plugin.pk
             plugin_instance.placeholder = target_placeholder
@@ -276,7 +288,8 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
             plugin_instance.cmsplugin_ptr = new_plugin
             plugin_instance.language = target_language
             plugin_instance.parent = new_plugin.parent
-            plugin_instance.position = new_plugin.position  # added to retain the position when creating a public copy of a plugin
+            # added to retain the position when creating a public copy of a plugin
+            plugin_instance.position = new_plugin.position
             plugin_instance.save()
             old_instance = plugin_instance.__class__.objects.get(pk=self.pk)
             plugin_instance.copy_relations(old_instance)
@@ -296,25 +309,6 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
         have to do this themselves!
         """
         pass
-
-    def delete_with_public(self):
-        """
-            Delete the public copy of this plugin if it exists,
-            then delete the draft
-        """
-        position = self.position
-        slot = self.placeholder.slot
-        page = self.placeholder.page
-        if page and getattr(page, 'publisher_public'):
-            try:
-                placeholder = Placeholder.objects.get(page=page.publisher_public, slot=slot)
-            except Placeholder.DoesNotExist:
-                pass
-            else:
-                public_plugin = CMSPlugin.objects.filter(placeholder=placeholder, position=position)
-                public_plugin.delete()
-        self.placeholder = None
-        self.delete()
 
     def has_change_permission(self, request):
         page = self.placeholder.page if self.placeholder else None
@@ -344,10 +338,8 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
     def get_breadcrumb(self):
         from cms.models import Page
 
-        models = self.placeholder._get_attached_models()
-        if models:
-            model = models[0]
-        else:
+        model = self.placeholder._get_attached_model()
+        if not model:
             model = Page
         breadcrumb = []
         if not self.parent_id:
@@ -374,13 +366,60 @@ class CMSPlugin(with_metaclass(PluginModelBase, MPTTModel)):
         return breadcrumb
 
     def get_breadcrumb_json(self):
-        result = simplejson.dumps(self.get_breadcrumb())
+        result = json.dumps(self.get_breadcrumb())
         result = mark_safe(result)
         return result
 
     def num_children(self):
         if self.child_plugin_instances:
             return len(self.child_plugin_instances)
+
+    def notify_on_autoadd(self, request, conf):
+        """
+        Method called when we auto add this plugin via default_plugins in 
+        CMS_PLACEHOLDER_CONF.
+        Some specific plugins may have some special stuff to do when they are
+        auto added.
+        """
+        pass
+
+    def notify_on_autoadd_children(self, request, conf, children):
+        """
+        Method called when we auto add children to this plugin via 
+        default_plugins/<plugin>/children in CMS_PLACEHOLDER_CONF.
+        Some specific plugins may have some special stuff to do when we add
+        children to them. ie : TextPlugin must update its content to add HTML 
+        tags to be able to see his children in WYSIWYG.
+        """
+        pass
+
+    def get_translatable_content(self):
+        fields = []
+        for field in self._meta.fields:
+            if ((isinstance(field, models.CharField) or isinstance(field, models.TextField)) and not field.choices and
+                field.editable and field.name not in self.translatable_content_excluded_fields and field):
+                fields.append(field)
+
+        translatable_fields = {}
+        for field in fields:
+            content = getattr(self, field.name)
+            if content:
+                translatable_fields[field.name] = content
+
+        return translatable_fields
+
+    def set_translatable_content(self, fields):
+        for field, value in fields.items():
+            setattr(self, field, value)
+
+        self.save()
+
+        # verify that all fields have been set
+        for field, value in fields.items():
+            if getattr(self, field) != value:
+                return False
+
+        return True
 
 
 reversion_register(CMSPlugin)

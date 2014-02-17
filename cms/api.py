@@ -7,6 +7,7 @@ You must implement the necessary permission checks in your own code before
 calling these methods!
 """
 import datetime
+from cms.utils import copy_plugins
 from cms.utils.compat.type_checks import string_types
 from cms.utils.conf import get_cms_setting
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -14,7 +15,6 @@ from cms.utils.i18n import get_language_list
 
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
-from django.db.models import Max
 from django.template.defaultfilters import slugify
 from menus.menu_pool import menu_pool
 
@@ -89,6 +89,7 @@ def _verify_plugin_type(plugin_type):
     """
     if (hasattr(plugin_type, '__module__') and
         issubclass(plugin_type, CMSPluginBase)):
+        plugin_pool.set_plugin_meta()
         plugin_model = plugin_type.model
         assert plugin_type in plugin_pool.plugins.values()
         plugin_type = plugin_type.__name__
@@ -183,7 +184,6 @@ def create_page(title, template, language, menu_title=None, slug=None,
         soft_root=soft_root,
         reverse_id=reverse_id,
         navigation_extenders=navigation_extenders,
-        published=False, # will be published later
         template=template,
         application_urls=application_urls,
         application_namespace=apphook_namespace,
@@ -202,11 +202,11 @@ def create_page(title, template, language, menu_title=None, slug=None,
         redirect=redirect,
         meta_description=meta_description,
         page=page,
-        overwrite_url=overwrite_url
+        overwrite_url=overwrite_url,
     )
 
     if published:
-        page.publish()
+        page.publish(language)
 
     del _thread_locals.user
     return page.reload()
@@ -262,14 +262,27 @@ def add_plugin(placeholder, plugin_type, language, position='last-child',
 
     # validate and normalize plugin type
     plugin_model, plugin_type = _verify_plugin_type(plugin_type)
-
-    max_pos = CMSPlugin.objects.filter(language=language,
-                                       placeholder=placeholder).aggregate(Max('position'))['position__max'] or 0
+    if target:
+        if position == 'last-child':
+            new_pos = CMSPlugin.objects.filter(language=language, parent=target, tree_id=target.tree_id).count()
+        elif position == 'first-child':
+            new_pos = 0
+        elif position == 'left':
+            new_pos = target.position
+        elif position == 'right':
+            new_pos = target.position + 1
+        else:
+            raise Exception('position not supported: %s' % position)
+        for pl in CMSPlugin.objects.filter(language=language, parent=target.parent_id, tree_id=target.tree_id, position__gte=new_pos):
+            pl.position += 1
+            pl.save()
+    else:
+        new_pos = CMSPlugin.objects.filter(language=language, parent__isnull=True, placeholder=placeholder).count()
 
     plugin_base = CMSPlugin(
         plugin_type=plugin_type,
         placeholder=placeholder,
-        position=max_pos + 1,
+        position=new_pos,
         language=language
     )
     plugin_base.insert_at(target, position=position, save=False)
@@ -359,7 +372,7 @@ def assign_user_to_page(page, user, grant_on=ACCESS_PAGE_AND_DESCENDANTS,
     return page_permission
 
 
-def publish_page(page, user):
+def publish_page(page, user, language):
     """
     Publish a page. This sets `page.published` to `True` and calls publish()
     which does the actual publishing.
@@ -375,7 +388,58 @@ def publish_page(page, user):
     request = FakeRequest(user)
     if not page.has_publish_permission(request):
         raise PermissionDenied()
-    page.published = True
-    page.save()
-    page.publish()
+    page.publish(language)
     return page.reload()
+
+
+def get_page_draft(page):
+    """
+    Returns the draft version of a page, regardless if the passed in
+    page is a published version or a draft version.
+
+    :param page: The page to get the draft version
+    :type page: :class:`cms.models.pagemodel.Page` instance
+    :return page: draft version of the page
+    :type page: :class:`cms.models.pagemodel.Page` instance
+    """
+    if page:
+        if page.publisher_is_draft:
+            return page
+        else:
+            return page.publisher_draft
+    else:
+        return None
+
+
+def copy_plugins_to_language(page, source_language, target_language,
+                             only_empty=True):
+    """
+    Copy the plugins to another language in the same page for all the page
+    placeholders.
+
+    By default plugins are copied only if placeholder has no plugin for the
+    target language; use ``only_empty=False`` to change this.
+
+    .. warning: This function skips permissions checks
+
+    :param page: the page to copy
+    :type page: :class:`cms.models.pagemodel.Page` instance
+    :param string source_language: The source language code,
+     must be in :setting:`django:LANGUAGES`
+    :param string target_language: The source language code,
+     must be in :setting:`django:LANGUAGES`
+    :param bool only_empty: if False, plugin are copied even if
+     plugins exists in the target language (on a placeholder basis).
+    :return int: number of copied plugins
+    """
+    copied = 0
+    placeholders = page.placeholders.all()
+    for placeholder in placeholders:
+        # only_empty is True we check if the placeholder already has plugins and
+        # we skip it if has some
+        if not only_empty or not placeholder.cmsplugin_set.filter(language=target_language).exists():
+            plugins = list(
+                placeholder.cmsplugin_set.filter(language=source_language).order_by('tree_id', 'level', 'position'))
+            copied_plugins = copy_plugins.copy_plugins_to(plugins, placeholder, target_language)
+            copied += len(copied_plugins)
+    return copied

@@ -6,11 +6,11 @@
 {% block content %}
 <script>
 window.CMS || window.parent.CMS || document.write(
-	'<script src="{% static "admin/js/jquery.min.js" %}"><\/script>' +
+	'<script src="{% static "cms/js/libs/jquery.min.js" %}"><\/script>' +
 	'<script src="{% static "cms/js/plugins/cms.base.js" %}"><\/script>'
 );
 </script>
-<script type="text/javascript">
+<script>
 (function(Window) {
 // CMS.$ will be passed for $
 Window.CMS.$(document).ready(function () {
@@ -23,7 +23,7 @@ Window.CMS.$(document).ready(function () {
 		'plugin_desc': '{{ alt }}'
 	};
 	// save current plugin
-	Window.CMS.API.Helpers.reloadBrowser(undefined, {{ window_close_timeout|default:1000 }});
+	Window.CMS.API.Helpers.reloadBrowser(undefined, {{ window_close_timeout|default:500 }});
 });
 // we have a special case here cause the CMS namespace
 // can be either inside the current window or the parent

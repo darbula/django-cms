@@ -2,10 +2,13 @@
 from __future__ import with_statement
 import inspect
 from contextlib import contextmanager
+import os
+from django.template import Lexer, TOKEN_BLOCK
 from cms import constants
 from cms.models.pluginmodel import CMSPlugin
 from cms.plugin_pool import plugin_pool
 from cms.utils import get_cms_setting
+from cms.utils.compat.dj import get_app_paths
 from cms.management.commands.subcommands.list import plugin_report
 from django.conf import settings
 from django.utils.decorators import method_decorator
@@ -187,6 +190,19 @@ def check_i18n(output):
             section.success("New style CMS_LANGUAGES")
         else:
             section.warn("Old style (tuple based) CMS_LANGUAGES, please switch to the new (dictionary based) style")
+        if getattr(settings, 'LANGUAGE_CODE', '').find('_') > -1:
+            section.warn("LANGUAGE_CODE must contain a valid language code, not a locale (e.g.: 'en-us' instead of 'en_US'): '%s' provided" % getattr(settings, 'LANGUAGE_CODE', ''))
+        for lang in getattr(settings, 'LANGUAGES', ()):
+            if lang[0].find('_') > -1:
+                section.warn("LANGUAGES must contain valid language codes, not locales (e.g.: 'en-us' instead of 'en_US'): '%s' provided" % lang[0])
+        if isinstance(settings.SITE_ID, int):
+            for site, items in get_cms_setting('LANGUAGES').items():
+                if type(site) == int:
+                    for lang in items:
+                        if lang['code'].find('_') > -1:
+                            section.warn("CMS_LANGUAGES entries must contain valid language codes, not locales (e.g.: 'en-us' instead of 'en_US'): '%s' provided" % lang['code'])
+        else:
+            section.error("SITE_ID must be an integer, not %r" % settings.SITE_ID)
         for deprecated in ['CMS_HIDE_UNTRANSLATED', 'CMS_LANGUAGE_FALLBACK', 'CMS_LANGUAGE_CONF', 'CMS_SITE_LANGUAGES', 'CMS_FRONTEND_LANGUAGES']:
             if hasattr(settings, deprecated):
                 section.warn("Deprecated setting %s found. This setting is now handled in the new style CMS_LANGUAGES and can be removed" % deprecated)
@@ -256,6 +272,43 @@ def check_copy_relations(output):
             section.finish_success('All plugins have "copy_relations" method if needed.')
         else:
             section.finish_success('Some plugins do not define a "copy_relations" method.\nThis might lead to data loss when publishing or copying plugins.\nSee https://django-cms.readthedocs.org/en/latest/extending_cms/custom_plugins.html#handling-relations')
+
+
+def _load_all_templates(directory):
+    """
+    Loads all templates in a directory (recursively) and yields tuples of
+    template tokens and template paths.
+    """
+    if os.path.exists(directory):
+        for name in os.listdir(directory):
+            path = os.path.join(directory, name)
+            if os.path.isdir(path):
+                for template in _load_all_templates(path):
+                    yield template
+            elif path.endswith('.html'):
+                with open(path, 'rb') as fobj:
+                    source = fobj.read().decode(settings.FILE_CHARSET)
+                    lexer = Lexer(source, path)
+                    yield lexer.tokenize(), path
+
+@define_check
+def deprecations(output):
+    # deprecated placeholder_tags scan (1 in 3.1)
+    templates_dirs = list(getattr(settings, 'TEMPLATE_DIRS', []))
+    templates_dirs.extend(
+        [os.path.join(path, 'templates') for path in get_app_paths()]
+    )
+    with output.section('Usage of deprecated placeholder_tags') as section:
+        for template_dir in templates_dirs:
+            for tokens, path in _load_all_templates(template_dir):
+                for token in tokens:
+                    if token.token_type == TOKEN_BLOCK:
+                        bits = token.split_contents()
+                        if bits[0] == 'load' and 'placeholder_tags' in bits:
+                            section.warn(
+                                'Usage of deprecated template tag library '
+                                'placeholder tags in template %s' % path
+                            )
 
 
 def check(output):
