@@ -134,13 +134,14 @@ class ToolbarAPIMixin(object):
         return item
 
     def add_modal_item(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=URL_CHANGE,
-                 on_close=REFRESH_PAGE, side=LEFT, position=None):
+                 on_close=REFRESH_PAGE, redirect_on_close=None, side=LEFT, position=None):
         item = ModalItem(name, url,
             active=active,
             disabled=disabled,
             extra_classes=extra_classes,
             close_on_url=close_on_url,
             on_close=on_close,
+            redirect_on_close=redirect_on_close,
             side=side,
         )
         self.add_item(item, position=position)
@@ -332,7 +333,7 @@ class ModalItem(BaseItem):
     template = "cms/toolbar/items/item_modal.html"
 
     def __init__(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=URL_CHANGE,
-                 on_close=None, side=LEFT):
+                 on_close=None, redirect_on_close=None, side=LEFT):
         super(ModalItem, self).__init__(side)
         self.name = "%s ..." % force_unicode(name)
         self.url = url
@@ -341,6 +342,7 @@ class ModalItem(BaseItem):
         self.extra_classes = extra_classes or []
         self.close_on_url = close_on_url
         self.on_close = on_close
+        self.redirect_on_close = redirect_on_close
 
     def __repr__(self):
         return '<ModalItem:%s>' % force_unicode(self.name)
@@ -354,6 +356,7 @@ class ModalItem(BaseItem):
             'extra_classes': self.extra_classes,
             'close_on_url': self.close_on_url,
             'on_close': self.on_close,
+            'redirect_on_close': self.redirect_on_close,
         }
 
 

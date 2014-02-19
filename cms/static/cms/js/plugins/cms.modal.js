@@ -19,6 +19,7 @@ $(document).ready(function () {
 			'minHeight': 400,
 			'minWidth': 800,
 			'onClose': false,
+			'redirectOnClose': false,
 			'newPlugin': false
 		},
 

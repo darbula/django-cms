@@ -401,7 +401,8 @@ $(document).ready(function () {
 
 			switch(target) {
 				case 'modal':
-					var modal = new CMS.Modal({'onClose': el.attr('data-on-close')});
+					var modal = new CMS.Modal({'onClose': el.attr('data-on-close'),
+												'redirectOnClose': el.attr('data-redirect-on-close')});
 						modal.open(el.attr('href'), el.attr('data-name'));
 					break;
 				case 'message':
