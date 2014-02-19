@@ -501,7 +501,16 @@ $(document).ready(function () {
 			iframe.bind('load', function () {
 				// show messages in toolbar if provided
 				var messages = iframe.contents().find('.messagelist li');
-					if(messages.length) CMS.API.Toolbar.openMessage(messages.eq(0).text());
+					if(messages.length) {
+						CMS.API.Toolbar.openMessage(messages.eq(0).text());
+						// if message with redirect url is available set redirect
+						if (that.options.redirectOnClose === 'TO_OBJECT_URL') {
+							var red_url = messages.filter(function() {
+								return $(this).text().indexOf('/') === 0;
+							})[0];
+							that.options.redirectOnClose = (typeof(red_url) != 'undefined') ? red_url.textContent + "?edit" : false;
+						}
+					}
 					messages.remove();
 
 				// determine if we should close the modal or reload
