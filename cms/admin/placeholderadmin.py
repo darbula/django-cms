@@ -35,7 +35,7 @@ from cms.utils import copy_plugins, permissions, get_language_from_request
 from cms.utils.i18n import get_language_list
 
 
-class FrontendEditableAdmin(object):
+class FrontendEditableAdminMixin(object):
     frontend_editable_fields = []
 
     def get_urls(self):
@@ -51,7 +51,7 @@ class FrontendEditableAdmin(object):
             '',
             pat(r'edit-field/([0-9]+)/([a-z\-]+)/$', self.edit_field),
         )
-        return url_patterns + super(FrontendEditableAdmin, self).get_urls()
+        return url_patterns + super(FrontendEditableAdminMixin, self).get_urls()
 
     def _get_object_for_single_field(self, object_id, language):
         # Quick and dirty way to retrieve objects for django-hvad
@@ -69,9 +69,17 @@ class FrontendEditableAdmin(object):
         raw_fields = request.GET.get("edit_fields")
         fields = [field for field in raw_fields.split(",") if field in self.frontend_editable_fields]
         if not fields:
-            return HttpResponseBadRequest(force_unicode(_("Fields %s not editabled in the frontend")) % raw_fields)
+            context = {
+                'opts': opts,
+                'message': force_unicode(_("Field %s not found")) % raw_fields
+            }
+            return render_to_response('admin/cms/page/plugin/error_form.html', context, RequestContext(request))
         if not request.user.has_perm("%s_change" % self.model._meta.module_name):
-            return HttpResponseForbidden(force_unicode(_("You do not have permission to edit this item")))
+            context = {
+                'opts': opts,
+                'message': force_unicode(_("You do not have permission to edit this item"))
+            }
+            return render_to_response('admin/cms/page/plugin/error_form.html', context, RequestContext(request))
             # Dinamically creates the form class with only `field_name` field
         # enabled
         form_class = self.get_form(request, obj, fields=fields)
@@ -111,7 +119,7 @@ class FrontendEditableAdmin(object):
         return render_to_response('admin/cms/page/plugin/change_form.html', context, RequestContext(request))
 
 
-class PlaceholderAdmin(ModelAdmin):
+class PlaceholderAdminMixin(object):
     def get_urls(self):
         """
         Register the plugin specific urls (add/edit/copy/remove/move)
@@ -130,7 +138,7 @@ class PlaceholderAdmin(ModelAdmin):
             pat(r'clear-placeholder/([0-9]+)/$', self.clear_placeholder),
             pat(r'move-plugin/$', self.move_plugin),
         )
-        return url_patterns + super(PlaceholderAdmin, self).get_urls()
+        return url_patterns + super(PlaceholderAdminMixin, self).get_urls()
 
     def has_add_plugin_permission(self, request, placeholder, plugin_type):
         if not permissions.has_plugin_permission(request.user, plugin_type, "add"):
@@ -547,3 +555,17 @@ class PlaceholderAdmin(ModelAdmin):
         }
         return TemplateResponse(request, "admin/cms/page/plugin/delete_confirmation.html", context,
                                 current_app=self.admin_site.name)
+
+
+class PlaceholderAdmin(PlaceholderAdminMixin, ModelAdmin):
+    def __init__(self, *args, **kwargs):
+        warnings.warn("Class PlaceholderAdmin is deprecated and will be removed in 3.1. "
+            "Instead, combine PlaceholderAdminMixin with admin.ModelAdmin.", DeprecationWarning)
+        super(PlaceholderAdmin, self).__init__(*args, **kwargs)
+
+
+class FrontendEditableAdmin(FrontendEditableAdminMixin):
+    def __init__(self, *args, **kwargs):
+        warnings.warn("Class FrontendEditableAdmin is deprecated and will be removed in 3.1. "
+            "Instead, use FrontendEditableAdminMixin.", DeprecationWarning)
+        super(FrontendEditableAdmin, self).__init__(*args, **kwargs)

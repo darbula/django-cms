@@ -66,7 +66,8 @@ Credits
   `over 250 contributors <https://github.com/divio/django-cms/blob/master/AUTHORS>`_
   to the django CMS!
   
-  
+
 .. image:: https://d2weczhvl823v0.cloudfront.net/divio/django-cms/trend.png
    :alt: Bitdeli badge
    :target: https://bitdeli.com/free
+

@@ -7,7 +7,6 @@ from django.template.loader import render_to_string
 from django.utils.functional import Promise
 
 
-
 class ItemSearchResult(object):
     def __init__(self, item, index):
         self.item = item
@@ -98,7 +97,8 @@ class ToolbarAPIMixin(object):
     # This will only work if it is used to determine the insert position for
     # all items in the same menu.
     #
-    def get_alphabetical_insert_position(self, new_menu_name, item_type, default=0):
+    def get_alphabetical_insert_position(self, new_menu_name, item_type,
+                                         default=0):
         results = self.find_items(item_type)
 
         # No items yet? Use the default value provided
@@ -120,52 +120,53 @@ class ToolbarAPIMixin(object):
         self._remove_item(item)
         self._unmemoize(item)
 
-    def add_sideframe_item(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=None,
-                 on_close=None, side=LEFT, position=None):
+    def add_sideframe_item(self, name, url, active=False, disabled=False,
+                           extra_classes=None, on_close=None, side=LEFT, position=None):
         item = SideframeItem(name, url,
-            active=active,
-            disabled=disabled,
-            extra_classes=extra_classes,
-            close_on_url=close_on_url,
-            on_close=on_close,
-            side=side,
+                             active=active,
+                             disabled=disabled,
+                             extra_classes=extra_classes,
+                             on_close=on_close,
+                             side=side,
         )
         self.add_item(item, position=position)
         return item
 
-    def add_modal_item(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=URL_CHANGE,
-                 on_close=REFRESH_PAGE, redirect_on_close=None, side=LEFT, position=None):
+    def add_modal_item(self, name, url, active=False, disabled=False,
+                       extra_classes=None, on_close=REFRESH_PAGE, redirect_on_close=None, side=LEFT, position=None):
         item = ModalItem(name, url,
-            active=active,
-            disabled=disabled,
-            extra_classes=extra_classes,
-            close_on_url=close_on_url,
-            on_close=on_close,
-            redirect_on_close=redirect_on_close,
-            side=side,
+                         active=active,
+                         disabled=disabled,
+                         extra_classes=extra_classes,
+                         on_close=on_close,
+                         redirect_on_close=redirect_on_close,
+                         side=side,
         )
         self.add_item(item, position=position)
         return item
 
-    def add_link_item(self, name, url, active=False, disabled=False, extra_classes=None, side=LEFT, position=None):
+    def add_link_item(self, name, url, active=False, disabled=False,
+                      extra_classes=None, side=LEFT, position=None):
         item = LinkItem(name, url,
-            active=active,
-            disabled=disabled,
-            extra_classes=extra_classes,
-            side=side
+                        active=active,
+                        disabled=disabled,
+                        extra_classes=extra_classes,
+                        side=side
         )
         self.add_item(item, position=position)
         return item
 
-    def add_ajax_item(self, name, action, active=False, disabled=False, extra_classes=None, data=None, question=None,
-                      side=LEFT, position=None):
+    def add_ajax_item(self, name, action, active=False, disabled=False,
+                      extra_classes=None, data=None, question=None,
+                      side=LEFT, position=None, on_success=None):
         item = AjaxItem(name, action, self.csrf_token,
-            active=active,
-            disabled=disabled,
-            extra_classes=extra_classes,
-            data=data,
-            question=question,
-            side=side,
+                        active=active,
+                        disabled=disabled,
+                        extra_classes=extra_classes,
+                        data=data,
+                        question=question,
+                        side=side,
+                        on_success=on_success,
         )
         self.add_item(item, position=position)
         return item
@@ -269,8 +270,7 @@ class LinkItem(BaseItem):
 class SideframeItem(BaseItem):
     template = "cms/toolbar/items/item_sideframe.html"
 
-    def __init__(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=None,
-                 on_close=None, side=LEFT):
+    def __init__(self, name, url, active=False, disabled=False, extra_classes=None, on_close=None, redirect_on_close=None, side=LEFT):
         super(SideframeItem, self).__init__(side)
         self.name = "%s ..." % force_unicode(name)
         self.url = url
@@ -278,7 +278,7 @@ class SideframeItem(BaseItem):
         self.disabled = disabled
         self.extra_classes = extra_classes or []
         self.on_close = on_close
-        self.close_on_url = close_on_url
+        self.redirect_on_close = redirect_on_close
 
     def __repr__(self):
         return '<SideframeItem:%s>' % force_unicode(self.name)
@@ -291,15 +291,23 @@ class SideframeItem(BaseItem):
             'disabled': self.disabled,
             'extra_classes': self.extra_classes,
             'on_close': self.on_close,
-            'close_on_url': self.close_on_url,
+            'redirect_on_close': self.redirect_on_close,
         }
+
+
+class ModalItem(SideframeItem):
+    template = "cms/toolbar/items/item_modal.html"
+
+    def __repr__(self):
+        return '<ModalItem:%s>' % force_unicode(self.name)
 
 
 class AjaxItem(BaseItem):
     template = "cms/toolbar/items/item_ajax.html"
 
-    def __init__(self, name, action, csrf_token, data=None, active=False, disabled=False, extra_classes=None,
-                 question=None, side=LEFT):
+    def __init__(self, name, action, csrf_token, data=None, active=False,
+                 disabled=False, extra_classes=None,
+                 question=None, side=LEFT, on_success=None):
         super(AjaxItem, self).__init__(side)
         self.name = name
         self.action = action
@@ -309,6 +317,7 @@ class AjaxItem(BaseItem):
         self.data = data or {}
         self.extra_classes = extra_classes or []
         self.question = question
+        self.on_success = on_success
 
     def __repr__(self):
         return '<AjaxItem:%s>' % force_unicode(self.name)
@@ -325,39 +334,11 @@ class AjaxItem(BaseItem):
             'disabled': self.disabled,
             'extra_classes': self.extra_classes,
             'data': data,
-            'question': self.question
+            'question': self.question,
+            'on_success': self.on_success
         }
 
 
-class ModalItem(BaseItem):
-    template = "cms/toolbar/items/item_modal.html"
-
-    def __init__(self, name, url, active=False, disabled=False, extra_classes=None, close_on_url=URL_CHANGE,
-                 on_close=None, redirect_on_close=None, side=LEFT):
-        super(ModalItem, self).__init__(side)
-        self.name = "%s ..." % force_unicode(name)
-        self.url = url
-        self.active = active
-        self.disabled = disabled
-        self.extra_classes = extra_classes or []
-        self.close_on_url = close_on_url
-        self.on_close = on_close
-        self.redirect_on_close = redirect_on_close
-
-    def __repr__(self):
-        return '<ModalItem:%s>' % force_unicode(self.name)
-
-    def get_context(self):
-        return {
-            'name': self.name,
-            'url': self.url,
-            'active': self.active,
-            'disabled': self.disabled,
-            'extra_classes': self.extra_classes,
-            'close_on_url': self.close_on_url,
-            'on_close': self.on_close,
-            'redirect_on_close': self.redirect_on_close,
-        }
 
 
 class Break(BaseItem):
@@ -367,8 +348,22 @@ class Break(BaseItem):
         self.identifier = identifier
 
 
-class Button(object):
-    def __init__(self, name, url, active=False, disabled=False, extra_classes=None):
+class BaseButton(object):
+    __metaclass__ = abc.ABCMeta
+    template = None
+
+    def render(self):
+        return render_to_string(self.template, self.get_context())
+
+    def get_context(self):
+        return {}
+
+
+class Button(BaseButton):
+    template = "cms/toolbar/items/button.html"
+
+    def __init__(self, name, url, active=False, disabled=False,
+                 extra_classes=None):
         self.name = name
         self.url = url
         self.active = active
@@ -377,6 +372,47 @@ class Button(object):
 
     def __repr__(self):
         return '<Button:%s>' % force_unicode(self.name)
+
+    def get_context(self):
+        return {
+            'name': self.name,
+            'url': self.url,
+            'active': self.active,
+            'disabled': self.disabled,
+            'extra_classes': self.extra_classes,
+        }
+
+
+class ModalButton(Button):
+    template = "cms/toolbar/items/button_modal.html"
+
+    def __init__(self, name, url, active=False, disabled=False,  extra_classes=None, on_close=None):
+        self.name = name
+        self.url = url
+        self.active = active
+        self.disabled = disabled
+        self.extra_classes = extra_classes or []
+        self.on_close = on_close
+
+    def __repr__(self):
+        return '<ModalButton:%s>' % force_unicode(self.name)
+
+    def get_context(self):
+        return {
+            'name': self.name,
+            'url': self.url,
+            'active': self.active,
+            'disabled': self.disabled,
+            'extra_classes': self.extra_classes,
+            'on_close': self.on_close,
+        }
+
+
+class SideframeButton(ModalButton):
+    template = "cms/toolbar/items/button_sideframe.html"
+
+    def __repr__(self):
+        return '<SideframeButton:%s>' % force_unicode(self.name)
 
 
 class ButtonList(BaseItem):
@@ -396,11 +432,22 @@ class ButtonList(BaseItem):
             raise ValueError("Expected instance of cms.toolbar.items.Button, got %r instead" % item)
         self.buttons.append(item)
 
-    def add_button(self, name, url, active=False, disabled=False, extra_classes=None):
+    def add_button(self, name, url, active=False, disabled=False,
+                   extra_classes=None):
         item = Button(name, url,
-            active=active,
-            disabled=disabled,
-            extra_classes=extra_classes
+                      active=active,
+                      disabled=disabled,
+                      extra_classes=extra_classes
+        )
+        self.buttons.append(item)
+        return item
+
+    def add_modal_button(self, name, url, active=False, disabled=False, extra_classes=None, on_close=REFRESH_PAGE):
+        item = ModalButton(name, url,
+                      active=active,
+                      disabled=disabled,
+                      extra_classes=extra_classes,
+                      on_close=on_close,
         )
         self.buttons.append(item)
         return item

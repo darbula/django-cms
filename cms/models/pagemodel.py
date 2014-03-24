@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
-
+from os.path import join
 
 from django.utils.timezone import now
+from django.contrib.sites.models import Site
+from django.core.urlresolvers import reverse
+from django.core.cache import cache
+from django.conf import settings
+from django.db import models
+from django.shortcuts import get_object_or_404
+from django.utils.translation import get_language, ugettext_lazy as _
+from mptt.models import MPTTModel
 
-from os.path import join
 from cms import constants
 from cms.constants import PUBLISHER_STATE_DEFAULT, PUBLISHER_STATE_PENDING, PUBLISHER_STATE_DIRTY, TEMPLATE_INHERITANCE_MAGIC
-from cms.exceptions import PublicIsUnmodifiable, LanguageError
+from cms.exceptions import PublicIsUnmodifiable, LanguageError, PublicVersionNeeded
 from cms.models.managers import PageManager, PagePermissionsPermissionManager
 from cms.models.metaclasses import PageMetaClass
 from cms.models.placeholdermodel import Placeholder
@@ -19,15 +26,7 @@ from cms.utils.compat.metaclasses import with_metaclass
 from cms.utils.conf import get_cms_setting
 from cms.utils.copy_plugins import copy_plugins_to
 from cms.utils.helpers import reversion_register
-from django.contrib.sites.models import Site
-from django.core.urlresolvers import reverse
-from django.db import models
-from django.db.models import Q
-from django.shortcuts import get_object_or_404
-from django.utils.translation import get_language, ugettext_lazy as _
 from menus.menu_pool import menu_pool
-from mptt.models import MPTTModel
-
 
 @python_2_unicode_compatible
 class Page(with_metaclass(PageMetaClass, MPTTModel)):
@@ -38,8 +37,14 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         (1, _('for logged in users only')),
         (2, _('for anonymous users only')),
     )
+    TEMPLATE_DEFAULT = TEMPLATE_INHERITANCE_MAGIC if get_cms_setting('TEMPLATE_INHERITANCE') else get_cms_setting('TEMPLATES')[0][0]
 
-    template_choices = [(x, _(y)) for x, y in get_cms_setting('TEMPLATES')]
+    X_FRAME_OPTIONS_INHERIT = 0
+    X_FRAME_OPTIONS_DENY = 1
+    X_FRAME_OPTIONS_SAMEORIGIN = 2
+    X_FRAME_OPTIONS_ALLOW= 3
+
+    template_choices = [(x, _(y)) for x, y in get_cms_setting('TEMPLATES')]   
 
     created_by = models.CharField(_("created by"), max_length=70, editable=False)
     changed_by = models.CharField(_("changed by"), max_length=70, editable=False)
@@ -52,6 +57,10 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
     publication_end_date = models.DateTimeField(_("publication end date"), null=True, blank=True,
                                                 help_text=_('When to expire the page. Leave empty to never expire.'),
                                                 db_index=True)
+    #
+    # Please use toggle_in_navigation() instead of affecting this property
+    # directly so that the cms page cache can be invalidated as appropriate.
+    #
     in_navigation = models.BooleanField(_("in navigation"), default=True, db_index=True)
     soft_root = models.BooleanField(_("soft root"), db_index=True, default=False,
                                     help_text=_("All ancestors will not be displayed in the navigation"))
@@ -60,7 +69,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
     navigation_extenders = models.CharField(_("attached menu"), max_length=80, db_index=True, blank=True, null=True)
     template = models.CharField(_("template"), max_length=100, choices=template_choices,
                                 help_text=_('The template used to render the content.'),
-                                default=TEMPLATE_INHERITANCE_MAGIC)
+                                default=TEMPLATE_DEFAULT)
     site = models.ForeignKey(Site, help_text=_('The site the page is accessible at.'), verbose_name=_("site"),
                              related_name='djangocms_pages')
 
@@ -87,6 +96,19 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
     # If the draft is loaded from a reversion version save the revision id here.
     revision_id = models.PositiveIntegerField(default=0, editable=False)
+
+    # X Frame Options for clickjacking protection
+    xframe_options = models.IntegerField(
+        choices=(
+            (X_FRAME_OPTIONS_INHERIT, _('Inherit from parent page')),
+            (X_FRAME_OPTIONS_DENY, _('Deny')),
+            (X_FRAME_OPTIONS_SAMEORIGIN, _('Only this website')),
+            (X_FRAME_OPTIONS_ALLOW, _('Allow'))
+        ),
+        default=getattr(settings, 'CMS_DEFAULT_X_FRAME_OPTIONS', X_FRAME_OPTIONS_INHERIT)
+    )
+ 
+
     # Managers
     objects = PageManager()
     permissions = PagePermissionsPermissionManager()
@@ -96,7 +118,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             ('view_page', 'Can view page'),
             ('publish_page', 'Can publish page'),
         )
-        unique_together = (("publisher_is_draft", "application_namespace"),)
+        unique_together = (("publisher_is_draft", "application_namespace"), ("reverse_id", "site", "publisher_is_draft"))
         verbose_name = _('page')
         verbose_name_plural = _('pages')
         ordering = ('tree_id', 'lft')
@@ -125,7 +147,8 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         return object.__repr__(self)
 
     def is_dirty(self, language):
-        return self.get_publisher_state(language) == PUBLISHER_STATE_DIRTY
+        state = self.get_publisher_state(language)
+        return state == PUBLISHER_STATE_DIRTY or state == PUBLISHER_STATE_PENDING
 
     def get_absolute_url(self, language=None, fallback=True):
         if self.is_home:
@@ -151,7 +174,6 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
         # make sure move_page does not break when using INHERIT template
         # and moving to a top level position
-
         if (position in ('left', 'right') and not target.parent and is_inherited_template):
             self.template = self.get_template()
         self.move_to(target, position)
@@ -174,6 +196,9 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             cms_signals.page_moved.send(sender=Page, instance=public_page)
             public_page.save()
             page_utils.check_title_slugs(public_page)
+
+        from cms.views import invalidate_cms_page_cache
+        invalidate_cms_page_cache()
 
     def _copy_titles(self, target, language, published):
         """
@@ -219,7 +244,14 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         from cms.plugin_pool import plugin_pool
 
         plugin_pool.set_plugin_meta()
-        CMSPlugin.objects.filter(placeholder__page=target, language=language).delete()
+        for plugin in CMSPlugin.objects.filter(placeholder__page=target, language=language).order_by('-level'):
+            inst, cls = plugin.get_plugin_instance()
+            if inst and getattr(inst, 'cmsplugin_ptr', False):
+                inst.cmsplugin_ptr._no_reorder = True
+                inst.delete()
+            else:
+                plugin._no_reorder = True
+                plugin.delete()
         for ph in self.placeholders.all():
             plugins = ph.get_plugins_list(language)
             try:
@@ -230,26 +262,28 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 target.placeholders.add(ph)
                 # update the page copy
             if plugins:
-                copy_plugins_to(plugins, ph)
+                copy_plugins_to(plugins, ph, no_signals=True)
 
-    def _copy_attributes(self, target):
+    def _copy_attributes(self, target, clean=False):
         """
         Copy all page data to the target. This excludes parent and other values
         that are specific to an exact instance.
         :param target: The Page to copy the attributes to
         """
-        target.publication_date = self.publication_date
-        target.publication_end_date = self.publication_end_date
-        target.in_navigation = self.in_navigation
+        if not clean:
+            target.publication_date = self.publication_date
+            target.publication_end_date = self.publication_end_date
+            target.reverse_id = self.reverse_id
         target.login_required = self.login_required
-        target.limit_visibility_in_menu = self.limit_visibility_in_menu
+        target.in_navigation = self.in_navigation
         target.soft_root = self.soft_root
-        target.reverse_id = self.reverse_id
+        target.limit_visibility_in_menu = self.limit_visibility_in_menu
         target.navigation_extenders = self.navigation_extenders
         target.application_urls = self.application_urls
         target.application_namespace = self.application_namespace
         target.template = self.template
         target.site_id = self.site_id
+        target.xframe_options = self.xframe_options
 
     def copy_page(self, target, site, position='first-child',
                   copy_permissions=True):
@@ -299,6 +333,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             page.lft = None
             page.tree_id = None
             page.publisher_public_id = None
+            page.is_home = False
             # only set reverse_id on standard copy
             if page.reverse_id in site_reverse_ids:
                 page.reverse_id = None
@@ -398,7 +433,11 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
         user = getattr(_thread_locals, "user", None)
         if user:
-            self.changed_by = user.username
+            try:
+                self.changed_by = str(user)
+            except AttributeError:
+                # AnonymousUser may not have USERNAME_FIELD
+                self.changed_by = "anonymous"
         else:
             self.changed_by = "script"
         if created:
@@ -457,6 +496,26 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             return self.get_title_obj(language, False, force_reload=force_reload).published
         except Title.DoesNotExist:
             return False
+
+    def toggle_in_navigation(self, set_to=None):
+        '''
+        Toggles (or sets) in_navigation and invalidates the cms page cache
+        '''
+        old = self.in_navigation
+        if set_to in [True, False]:
+            self.in_navigation = set_to
+        else:
+            self.in_navigation = not self.in_navigation
+        self.save()
+
+        #
+        # If there was a change, invalidate the cms page cache
+        #
+        if self.in_navigation != old:
+            from cms.views import invalidate_cms_page_cache
+            invalidate_cms_page_cache()
+
+        return self.in_navigation
 
     def get_publisher_state(self, language, force_reload=False):
         from cms.models import Title
@@ -558,12 +617,17 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                                                     title_set__language=language).select_related('publisher_public')
         for page in publish_set:
             if page.publisher_public:
+                if not page.publisher_public.parent_id:
+                    page.publisher_public.parent = page.parent.publisher_public
+                    page.publisher_public.save()
                 if page.publisher_public.parent.is_published(language):
                     from cms.models import Title
-
-                    public_title = Title.objects.get(page=page.publisher_public, language=language)
+                    try:
+                        public_title = Title.objects.get(page=page.publisher_public, language=language)
+                    except Title.DoesNotExist:
+                        public_title = None
                     draft_title = Title.objects.get(page=page, language=language)
-                    if not public_title.published:
+                    if public_title and not public_title.published:
                         public_title._publisher_keep_state = True
                         public_title.published = True
                         public_title.publisher_state = PUBLISHER_STATE_DEFAULT
@@ -578,6 +642,9 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         import cms.signals as cms_signals
 
         cms_signals.post_publish.send(sender=Page, instance=self, language=language)
+
+        from cms.views import invalidate_cms_page_cache
+        invalidate_cms_page_cache()
 
         return published
 
@@ -608,18 +675,32 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         public_page.save()
         # trigger update home
         self.save()
-        # Go through all children of our public instance
-        descendants = public_page.get_descendants()
-        for child in descendants:
-            child.set_publisher_state(language, PUBLISHER_STATE_PENDING, published=False)
-            draft = child.publisher_public
-            if draft and draft.is_published(language) and draft.get_publisher_state(
-                    language) == PUBLISHER_STATE_DEFAULT:
-                draft.set_publisher_state(language, PUBLISHER_STATE_PENDING)
-        from cms.signals import post_unpublish
+        self.mark_descendants_pending(language)
 
+        from cms.views import invalidate_cms_page_cache
+        invalidate_cms_page_cache()
+
+        from cms.signals import post_unpublish
         post_unpublish.send(sender=Page, instance=self, language=language)
+
         return True
+
+    def mark_descendants_pending(self, language):
+        assert self.publisher_is_draft
+        # Go through all children of our public instance
+        public_page = self.publisher_public
+        from cms.models import Title
+        if public_page:
+            descendants = public_page.get_descendants().filter(title_set__language=language)
+            for child in descendants:
+                try:
+                    child.set_publisher_state(language, PUBLISHER_STATE_PENDING, published=False)
+                except Title.DoesNotExist:
+                    continue
+                draft = child.publisher_public
+                if draft and draft.is_published(language) and draft.get_publisher_state(
+                        language) == PUBLISHER_STATE_DEFAULT:
+                    draft.set_publisher_state(language, PUBLISHER_STATE_PENDING)
 
     def revert(self, language):
         """Revert the draft version to the same state as the public version
@@ -860,22 +941,21 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 return t[1]
         return _("default")
 
-    def has_view_permission(self, request):
+    def has_view_permission(self, request, user=None):
         from cms.models.permissionmodels import PagePermission, GlobalPagePermission
         from cms.utils.plugins import current_site
 
+        if not user:
+            user = request.user
+
         if not self.publisher_is_draft:
-            return self.publisher_draft.has_view_permission(request)
+            return self.publisher_draft.has_view_permission(request, user)
             # does any restriction exist?
         # inherited and direct
         is_restricted = PagePermission.objects.for_page(page=self).filter(can_view=True).exists()
-        if request.user.is_authenticated():
-            site = current_site(request)
-            global_perms_q = Q(can_view=True) & Q(
-                Q(sites__in=[site]) | Q(sites__isnull=True)
-            )
-            global_view_perms = GlobalPagePermission.objects.with_user(
-                request.user).filter(global_perms_q).exists()
+        if user.is_authenticated():
+            global_view_perms = GlobalPagePermission.objects.user_has_view_permission(
+                request.user, current_site(request)).exists()
 
             # a global permission was given to the request's user
             if global_view_perms:
@@ -883,19 +963,18 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             elif not is_restricted:
                 if ((get_cms_setting('PUBLIC_FOR') == 'all') or
                     (get_cms_setting('PUBLIC_FOR') == 'staff' and
-                        request.user.is_staff)):
+                        user.is_staff)):
                     return True
 
             # a restricted page and an authenticated user
             elif is_restricted:
                 opts = self._meta
                 codename = '%s.view_%s' % (opts.app_label, opts.object_name.lower())
-                user_perm = request.user.has_perm(codename)
+                user_perm = user.has_perm(codename)
                 generic_perm = self.has_generic_permission(request, "view")
                 return (user_perm or generic_perm)
 
         else:
-            #anonymous user
             if is_restricted or not get_cms_setting('PUBLIC_FOR') == 'all':
                 # anyonymous user, page has restriction and global access is permitted
                 return False
@@ -906,65 +985,74 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 # Django wide auth perms "can_view" or cms auth perms "can_view"
         opts = self._meta
         codename = '%s.view_%s' % (opts.app_label, opts.object_name.lower())
-        return (request.user.has_perm(codename) or
+        return (user.has_perm(codename) or
                 self.has_generic_permission(request, "view"))
 
-    def has_change_permission(self, request):
+    def has_change_permission(self, request, user=None):
         opts = self._meta
-        if request.user.is_superuser:
+        if not user:
+            user = request.user
+        if user.is_superuser:
             return True
-        return request.user.has_perm(opts.app_label + '.' + opts.get_change_permission()) and \
-               self.has_generic_permission(request, "change")
+        return (user.has_perm(opts.app_label + '.' + opts.get_change_permission())
+                and self.has_generic_permission(request, "change"))
 
-    def has_delete_permission(self, request):
+    def has_delete_permission(self, request, user=None):
         opts = self._meta
-        if request.user.is_superuser:
+        if not user:
+            user = request.user
+        if user.is_superuser:
             return True
-        return request.user.has_perm(opts.app_label + '.' + opts.get_delete_permission()) and \
-               self.has_generic_permission(request, "delete")
+        return (user.has_perm(opts.app_label + '.' + opts.get_delete_permission())
+                and self.has_generic_permission(request, "delete"))
 
-    def has_publish_permission(self, request):
-        if request.user.is_superuser:
+    def has_publish_permission(self, request, user=None):
+        if not user:
+            user = request.user
+        if user.is_superuser:
             return True
         opts = self._meta
-        return request.user.has_perm(opts.app_label + '.' + "publish_page") and \
-               self.has_generic_permission(request, "publish")
+        return (user.has_perm(opts.app_label + '.' + "publish_page")
+                and self.has_generic_permission(request, "publish"))
 
     has_moderate_permission = has_publish_permission
 
-    def has_advanced_settings_permission(self, request):
-        return self.has_generic_permission(request, "advanced_settings")
+    def has_advanced_settings_permission(self, request, user=None):
+        return self.has_generic_permission(request, "advanced_settings", user)
 
-    def has_change_permissions_permission(self, request):
+    def has_change_permissions_permission(self, request, user=None):
         """
         Has user ability to change permissions for current page?
         """
-        return self.has_generic_permission(request, "change_permissions")
+        return self.has_generic_permission(request, "change_permissions", user)
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request, user=None):
         """
         Has user ability to add page under current page?
         """
-        return self.has_generic_permission(request, "add")
+        return self.has_generic_permission(request, "add", user)
 
-    def has_move_page_permission(self, request):
+    def has_move_page_permission(self, request, user=None):
         """Has user ability to move current page?
         """
-        return self.has_generic_permission(request, "move_page")
+        return self.has_generic_permission(request, "move_page", user)
 
-    def has_generic_permission(self, request, perm_type):
+    def has_generic_permission(self, request, perm_type, user=None):
         """
         Return true if the current user has permission on the page.
         Return the string 'All' if the user has all rights.
         """
+        if not user:
+            user = request.user
         att_name = "permission_%s_cache" % perm_type
-        if not hasattr(self, "permission_user_cache") or not hasattr(self, att_name) \
-            or request.user.pk != self.permission_user_cache.pk:
+        if (not hasattr(self, "permission_user_cache")
+                or not hasattr(self, att_name)
+                or user.pk != self.permission_user_cache.pk):
             from cms.utils.permissions import has_generic_permission
 
-            self.permission_user_cache = request.user
+            self.permission_user_cache = user
             setattr(self, att_name, has_generic_permission(
-                self.id, request.user, perm_type, self.site_id))
+                self.id, user, perm_type, self.site_id))
             if getattr(self, att_name):
                 self.permission_edit_cache = True
         return getattr(self, att_name)
@@ -1136,7 +1224,27 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 self.placeholders.add(placeholder)
                 found[placeholder_name] = placeholder
         return found
+ 
+    def get_xframe_options(self):
+        """ Finds X_FRAME_OPTION from tree if inherited """
+        xframe_options = cache.get('cms:xframe_options:%s' % self.pk)
+        if xframe_options is None:
+            ancestors = self.get_ancestors(ascending=True, include_self=True)
+            
+            # Ignore those pages which just inherit their value
+            ancestors = ancestors.exclude(xframe_options=self.X_FRAME_OPTIONS_INHERIT)
+            
+            # Now just give me the clickjacking setting (not anything else)
+            xframe_options = ancestors.values_list('xframe_options', flat=True)
 
+            if len(xframe_options) <= 0:
+                # No ancestors were found
+                return None
+
+            xframe_options = xframe_options[0]
+            cache.set('cms:xframe_options:%s' % self.pk, xframe_options)
+
+        return xframe_options
 
 def _reversion():
     exclude_fields = ['publisher_is_draft', 'publisher_public', 'publisher_state']

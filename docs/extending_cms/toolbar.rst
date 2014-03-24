@@ -79,7 +79,7 @@ exposed by the toolbar and its items.
 
 To add a :class:`cms.toolbar.items.Menu` to the toolbar, use
 :meth:`cms.toolbar.toolbar.CMSToolbar.get_or_create_menu` which will either add a menu if
-it doesn't exist, or create it. 
+it doesn't exist, or create it.
 
 Then, to add a link to your changelist that will open in the sideframe, use the
 :meth:`cms.toolbar.items.ToolbarMixin.add_sideframe_item` method on the menu
@@ -131,6 +131,11 @@ menus::
             url = reverse('admin:polls_poll_changelist')
             menu.add_sideframe_item(_('Poll overview'), url=url)
             admin_menu.add_break('poll-break', position=menu)
+
+
+If you wish to simply detect the presence of a menu without actually creating
+it, you can use :meth:`cms.toolbar.toolbar.CMSToolbar.get_menu`, which will
+return the menu if it is present, or, if not, will return `None`.
 
 
 ===========================
@@ -252,3 +257,53 @@ selected poll and its sub-methods::
         menu.add_sideframe_item(_('Delete this Poll'), url=reverse('admin:polls_poll_delete', args=[poll_id]))
 
         return render(request, 'polls/detail.html', {'poll': poll})
+
+
+---------------------
+Detecting url changes
+---------------------
+
+Sometimes toolbar entries allow that you change the url of the current object displayed in the website. For example you are
+inside a blog entry and the toolbar allows to edit the blog slug or url. The toolbar will watch the
+``django.contrib.admin.models.LogEntry`` model and detect if you create or edit an object in the admin via modal or sideframe view.
+After the modal or sideframe closes it will redirect to the new url of the object.
+
+To set this behavior manually you can set the ``request.toolbar.set_object()`` function on which you can set the current object.
+
+Example::
+
+    def detail(request, poll_id):
+        poll = get_object_or_404(Poll, pk=poll_id)
+        if hasattr(request, 'toolbar'):
+            request.toolbar.set_object(poll)
+        return render(request, 'polls/detail.html', {'poll': poll})
+
+
+
+If you want to watch for object creation or editing of models and redirect after they have been added or changed add a
+``watch_models`` attribute to your toolbar.
+
+Example::
+
+    class PollToolbar(CMSToolbar):
+
+        watch_models = [Poll]
+
+        def populate(self):
+            ...
+
+After you add this every change to an instance of ``Poll`` via sideframe or modal window will trigger a redirect to
+the ``get_absolute_url()`` of the poll instance that was edited.
+
+
+********
+Frontend
+********
+
+The toolbar adds a class ``cms-ready`` to the **html** tag when ready. Additionally we add ``cms-toolbar-expanded`` when
+the toolbar is visible (expanded).
+
+The toolbar also fires a JavaScript event called **cms-ready** on the document.
+You can listen to this event using jQuery:
+
+``CMS.$(document).on('cms-ready', function () { ... });``

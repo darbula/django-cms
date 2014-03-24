@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
 from cms.apphook_pool import apphook_pool
+from cms.compat import get_user_model
+from cms.compat_forms import UserCreationForm
+from cms.constants import PAGE_TYPES_ID
 from cms.forms.widgets import UserSelectAdminWidget
-from cms.models import Page, PagePermission, PageUser, ACCESS_PAGE, PageUserGroup, titlemodels
+from cms.models import Page, PagePermission, PageUser, ACCESS_PAGE, PageUserGroup, titlemodels, Title
 from cms.utils.conf import get_cms_setting
 from cms.utils.i18n import get_language_tuple, get_language_list
 from cms.utils.mail import mail_page_user_change
@@ -11,8 +14,7 @@ from cms.utils.page_resolver import is_valid_url
 from cms.utils.permissions import get_current_user, get_subordinate_users, get_subordinate_groups, \
     get_user_permission_level
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.core.exceptions import ValidationError
@@ -25,6 +27,8 @@ from menus.menu_pool import menu_pool
 
 
 def get_permission_acessor(obj):
+    User = get_user_model()
+    
     if isinstance(obj, (PageUser, User,)):
         rel_name = 'user_permissions'
     else:
@@ -71,7 +75,7 @@ class PageForm(forms.ModelForm):
                                        max_length=155)
     language = forms.ChoiceField(label=_("Language"), choices=get_language_tuple(),
                                  help_text=_('The current language of the content fields.'))
-
+    page_type = forms.ChoiceField(label=_("Page type"), required=False)
 
     class Meta:
         model = Page
@@ -90,11 +94,24 @@ class PageForm(forms.ModelForm):
         self.fields['language'].choices = languages
         if not self.fields['language'].initial:
             self.fields['language'].initial = get_language()
+        if 'page_type' in self.fields:
+            try:
+                type_root = Page.objects.get(publisher_is_draft=True, reverse_id=PAGE_TYPES_ID)
+            except Page.DoesNotExist:
+                type_root = None
+            if type_root:
+                language = self.fields['language'].initial
+                type_ids = type_root.get_descendants().values_list('pk', flat=True)
+                titles = Title.objects.filter(page__in=type_ids, language=language)
+                choices = [('', '----')]
+                for title in titles:
+                    choices.append((title.page_id, title.title))
+                self.fields['page_type'].choices = choices
 
     def clean(self):
         cleaned_data = self.cleaned_data
         slug = cleaned_data.get('slug', '')
-
+        
         page = self.instance
         lang = cleaned_data.get('language', None)
         # No language, can not go further, but validation failed already
@@ -175,14 +192,24 @@ class PublicationDatesForm(forms.ModelForm):
 
 
 class AdvancedSettingsForm(forms.ModelForm):
+    from cms.forms.fields import PageSmartLinkField
     application_urls = forms.ChoiceField(label=_('Application'),
                                          choices=(), required=False,
                                          help_text=_('Hook application to this page.'))
     overwrite_url = forms.CharField(label=_('Overwrite URL'), max_length=255, required=False,
                                     help_text=_('Keep this field empty if standard path should be used.'))
 
-    redirect = forms.CharField(label=_('Redirect'), max_length=255, required=False,
-                               help_text=_('Redirects to this URL.'))
+    xframe_options = forms.ChoiceField(
+        choices=Page._meta.get_field('xframe_options').choices,
+        label=_('X Frame Options'),
+        help_text=_('Whether this page can be embedded in other pages or websites'),
+        initial=Page._meta.get_field('xframe_options').default,
+        required=False
+    )
+
+    redirect = PageSmartLinkField(label=_('Redirect'), required=False,
+                               help_text=_('Redirects to this URL.'), placeholder_text=_('Start typing...'))
+
     language = forms.ChoiceField(label=_("Language"), choices=get_language_tuple(),
                                  help_text=_('The current language of the content fields.'))
 
@@ -201,6 +228,9 @@ class AdvancedSettingsForm(forms.ModelForm):
                 [('', "---------")] + menu_pool.get_menus_by_attribute("cms_enabled", True))
         if 'application_urls' in self.fields:
             self.fields['application_urls'].choices = [('', "---------")] + apphook_pool.get_apphooks()
+
+        if 'redirect' in self.fields:
+            self.fields['redirect'].widget.language = self.fields['language'].initial
 
     def clean(self):
         cleaned_data = super(AdvancedSettingsForm, self).clean()
@@ -230,6 +260,16 @@ class AdvancedSettingsForm(forms.ModelForm):
             raise ValidationError(_('A instance name with this name already exists.'))
         return namespace
 
+    def clean_xframe_options(self):
+        if 'xframe_options' not in self.fields:
+            return # nothing to do, field isn't present
+
+        xframe_options = self.cleaned_data['xframe_options']
+        if xframe_options == '':
+            return Page._meta.get_field('xframe_options').default
+
+        return xframe_options
+
     def clean_overwrite_url(self):
         if 'overwrite_url' in self.fields:
             url = self.cleaned_data['overwrite_url']
@@ -240,7 +280,7 @@ class AdvancedSettingsForm(forms.ModelForm):
         model = Page
         fields = [
             'site', 'template', 'reverse_id', 'overwrite_url', 'redirect', 'soft_root', 'navigation_extenders',
-            'application_urls', 'application_namespace'
+            'application_urls', 'application_namespace', "xframe_options",
         ]
 
 
@@ -434,6 +474,12 @@ class PageUserForm(UserCreationForm, GenericCmsPermissionForm):
         if self.instance:
             return self.cleaned_data['username']
         return super(PageUserForm, self).clean_username()
+
+    # required if the User model's USERNAME_FIELD is the email field
+    def clean_email(self):
+        if self.instance:
+            return self.cleaned_data['email']
+        return super(PageUserForm, self).clean_email()
 
     def clean_password2(self):
         if self.instance and self.cleaned_data['password1'] == '' and self.cleaned_data['password2'] == '':

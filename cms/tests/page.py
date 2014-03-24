@@ -5,6 +5,7 @@ from cms import constants, api
 import os.path
 
 from django.conf import settings
+from django.core.cache import cache
 from django.contrib.sites.models import Site
 from django.contrib import admin
 from django.core.exceptions import ValidationError
@@ -43,6 +44,9 @@ class PageMigrationTestCase(CMSTestCase):
 
 
 class PagesTestCase(CMSTestCase):
+    def tearDown(self):
+        cache.clear()
+
     def test_add_page(self):
         """
         Test that the add admin page could be displayed via the admin
@@ -222,12 +226,12 @@ class PagesTestCase(CMSTestCase):
         """
         Test that a page can be edited multiple times with moderator
         """
-        home = api.create_page("home", "nav_playground.html", "en", published=True)
+        api.create_page("home", "nav_playground.html", "en", published=True)
         superuser = self.get_superuser()
         with self.login_user_context(superuser):
             page_data = self.get_new_page_data()
             response = self.client.post(URL_CMS_PAGE_ADD, page_data)
-            self.assertEquals(response.status_code, 302)
+            self.assertEqual(response.status_code, 302)
             page = Page.objects.get(title_set__slug=page_data['slug'])
             response = self.client.get('/en/admin/cms/page/%s/' % page.id)
             self.assertEqual(response.status_code, 200)
@@ -236,7 +240,7 @@ class PagesTestCase(CMSTestCase):
             response = self.client.post('/en/admin/cms/page/%s/advanced-settings/' % page.id, page_data)
             self.assertRedirects(response, URL_CMS_PAGE)
             self.assertEqual(page.get_absolute_url(), '/en/hello/')
-            title = Title.objects.all()[0]
+            Title.objects.all()[0]
             page = page.reload()
             page.publish('en')
             page_data['title'] = 'new title'
@@ -254,7 +258,7 @@ class PagesTestCase(CMSTestCase):
         with self.login_user_context(superuser):
             page_data = self.get_new_page_data()
             page_data["meta_description"] = "I am a page"
-            response = self.client.post(URL_CMS_PAGE_ADD, page_data)
+            self.client.post(URL_CMS_PAGE_ADD, page_data)
             page = Page.objects.get(title_set__slug=page_data['slug'], publisher_is_draft=True)
             response = self.client.get('/en/admin/cms/page/%s/' % page.id)
             self.assertEqual(response.status_code, 200)
@@ -735,7 +739,7 @@ class PagesTestCase(CMSTestCase):
         """ Tests if a URL-Override clashes with a normal page url
         """
         with SettingsOverride(CMS_PERMISSION=False):
-            home = create_page('home', 'nav_playground.html', 'en', published=True)
+            create_page('home', 'nav_playground.html', 'en', published=True)
             bar = create_page('bar', 'nav_playground.html', 'en', published=False)
             foo = create_page('foo', 'nav_playground.html', 'en', published=True)
             # Tests to assure is_valid_url is ok on plain pages
@@ -820,6 +824,71 @@ class PagesTestCase(CMSTestCase):
                         self.assertIn('text-%d-%d' % (i, j), content)
                         self.assertIn('link-%d-%d' % (i, j), content)
 
+    def test_xframe_options_allow(self):
+        """Test that no X-Frame-Options is set when page's xframe_options is set to allow"""
+        page = create_page(
+            title='home',
+            template='nav_playground.html',
+            language='en',
+            published=True,
+            slug='home',
+            xframe_options=Page.X_FRAME_OPTIONS_ALLOW
+        )
+
+        resp = self.client.get(page.get_absolute_url('en'))
+        self.assertEqual(resp.get('X-Frame-Options'), None)
+
+    def test_xframe_options_sameorigin(self):
+        """Test that X-Frame-Options is 'SAMEORIGIN' when xframe_options is set to origin"""
+        page = create_page(
+            title='home',
+            template='nav_playground.html',
+            language='en',
+            published=True,
+            slug='home',
+            xframe_options=Page.X_FRAME_OPTIONS_SAMEORIGIN
+        )
+
+        resp = self.client.get(page.get_absolute_url('en'))
+        self.assertEqual(resp.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_xframe_options_deny(self):
+        """Test that X-Frame-Options is 'DENY' when xframe_options is set to deny"""
+        page = create_page(
+            title='home',
+            template='nav_playground.html',
+            language='en',
+            published=True,
+            slug='home',
+            xframe_options=Page.X_FRAME_OPTIONS_DENY
+        )
+
+        resp = self.client.get(page.get_absolute_url('en'))
+        self.assertEqual(resp.get('X-Frame-Options'), 'DENY')
+
+    def test_xframe_options_inherit_with_parent(self):
+        """Test that X-Frame-Options is set to parent page's setting when inherit is set"""
+        parent = create_page(
+            title='home',
+            template='nav_playground.html',
+            language='en',
+            published=True,
+            slug='home',
+            xframe_options=Page.X_FRAME_OPTIONS_DENY
+        )
+
+        page = create_page(
+            title='subpage', 
+            template='nav_playground.html',
+            language='en',
+            published=True,
+            slug='subpage',
+            parent=parent,
+            xframe_options=Page.X_FRAME_OPTIONS_INHERIT
+        )
+
+        resp = self.client.get(page.get_absolute_url('en'))
+        self.assertEqual(resp.get('X-Frame-Options'), 'DENY')
 
 class PageAdminTestBase(CMSTestCase):
     """
@@ -872,7 +941,7 @@ class PageAdminTest(PageAdminTestBase):
                 request, str(page.pk),
                 form_url=form_url)
             self.assertTrue('form_url' in response.context_data)
-            self.assertEquals(response.context_data['form_url'], form_url)
+            self.assertEqual(response.context_data['form_url'], form_url)
 
     def test_global_limit_on_plugin_move(self):
         admin = self.get_admin()

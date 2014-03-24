@@ -1,21 +1,34 @@
 # -*- coding: utf-8 -*-
-from cms.utils.compat.dj import python_2_unicode_compatible
-from cms.utils.helpers import reversion_register
-from cms.utils.i18n import get_language_object
-from cms.utils.placeholder import PlaceholderNoAction, get_placeholder_conf
+import operator
+
+try:
+    reduce
+except NameError:
+    from functools import reduce
+
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.forms.widgets import Media
 from django.template.defaultfilters import title
+from django.utils.encoding import force_text
+from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
-import operator
+from django.conf import settings
 from django.contrib import admin
+
+from cms.exceptions import LanguageError
+from cms.utils import get_cms_setting
+from cms.utils.compat.dj import python_2_unicode_compatible
+from cms.utils.helpers import reversion_register
+from cms.utils.i18n import get_language_object
+from cms.utils.placeholder import PlaceholderNoAction, get_placeholder_conf
 
 
 @python_2_unicode_compatible
 class Placeholder(models.Model):
     slot = models.CharField(_("slot"), max_length=50, db_index=True, editable=False)
     default_width = models.PositiveSmallIntegerField(_("width"), null=True, editable=False)
+    cache_placeholder = True
 
     class Meta:
         app_label = 'cms'
@@ -49,6 +62,13 @@ class Placeholder(models.Model):
     def get_copy_url(self):
         return self._get_url('copy_plugins')
 
+    def get_cache_key(self, lang):
+        cache_key = '%srender_placeholder:%s.%s' % (get_cms_setting("CACHE_PREFIX"), self.pk, str(lang))
+        if settings.USE_TZ:
+            tz_name = force_text(get_current_timezone_name(), errors='ignore')
+            cache_key += '.%s' % tz_name.encode('ascii', 'ignore').decode('ascii').replace(' ', '_')
+        return cache_key
+
     def _get_url(self, key, pk=None):
         model = self._get_attached_model()
         args = []
@@ -69,18 +89,26 @@ class Placeholder(models.Model):
         """
         if request.user.is_superuser:
             return True
+        if self.page:
+            return self._get_object_permission(self.page, request, key)
+        for obj in self._get_attached_objects():
+            return self._get_object_permission(obj, request, key)
+
+    def _get_object_permission(self, obj, request, key):
         found = False
-        # check all attached models/objects for change permissions
-        for object in self._get_attached_objects():
-            model = object.__class__
-            opts = model._meta
-            perm_accessor = getattr(opts, 'get_%s_permission' % key)
-            perm_code = '%s.%s' % (opts.app_label, perm_accessor())
-            # if they don't have the permission for this attached model or object, bail out
-            if not (request.user.has_perm(perm_code) or request.user.has_perm(perm_code, object)):
-                return False
-            else:
-                found = True
+        model = obj.__class__
+        opts = model._meta
+        perm_accessor = getattr(opts, 'get_%s_permission' % key)
+        perm_code = '%s.%s' % (opts.app_label, perm_accessor())
+        # if they don't have the permission for this attached model or object, bail out
+        if not (request.user.has_perm(perm_code) or request.user.has_perm(perm_code, obj)):
+            return False
+        else:
+            found = True
+        if not (request.user.has_perm(perm_code) or request.user.has_perm(perm_code, obj)):
+            return False
+        else:
+            found = True
         return found
 
     def has_change_permission(self, request):
@@ -118,8 +146,8 @@ class Placeholder(models.Model):
             for rel in self._meta.get_all_related_objects():
                 if issubclass(rel.model, CMSPlugin):
                     continue
-                from cms.admin.placeholderadmin import PlaceholderAdmin
-                if rel.model in admin.site._registry and isinstance(admin.site._registry[rel.model], PlaceholderAdmin):
+                from cms.admin.placeholderadmin import PlaceholderAdminMixin
+                if rel.model in admin.site._registry and isinstance(admin.site._registry[rel.model], PlaceholderAdminMixin):
                     field = getattr(self, rel.get_accessor_name())
                     if field.count():
                         self._attached_fields_cache.append(rel.field)
@@ -137,8 +165,8 @@ class Placeholder(models.Model):
             for rel in relations:
                 if issubclass(rel.model, CMSPlugin):
                     continue
-                from cms.admin.placeholderadmin import PlaceholderAdmin
-                if rel.model in admin.site._registry and isinstance(admin.site._registry[rel.model], PlaceholderAdmin):
+                from cms.admin.placeholderadmin import PlaceholderAdminMixin
+                if rel.model in admin.site._registry and isinstance(admin.site._registry[rel.model], PlaceholderAdminMixin):
                     field = getattr(self, rel.get_accessor_name())
                     if field.count():
                         self._attached_field_cache = rel.field
@@ -211,7 +239,13 @@ class Placeholder(models.Model):
 
         This is not cached as it's meant to eb used in the frontend editor.
         """
-        return [get_language_object(lang_code) for lang_code in set(self.get_plugins().values_list('language', flat=True))]
+        languages = []
+        for lang_code in set(self.get_plugins().values_list('language', flat=True)):
+            try:
+                languages.append(get_language_object(lang_code))
+            except LanguageError:
+                pass
+        return languages
 
     def get_cached_plugins(self):
         return getattr(self, '_plugins_cache', [])

@@ -3,6 +3,7 @@ from __future__ import with_statement
 import os
 import dj_database_url
 from cms.utils.compat import DJANGO_1_5
+import django
 
 gettext = lambda s: s
 
@@ -18,7 +19,12 @@ def configure(db_url, **extra):
     else:
         DB = {}
     defaults = dict(
-        CACHE_BACKEND='locmem:///',
+        CACHES={
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            }
+        },
+        CACHE_MIDDLEWARE_ANONYMOUS_ONLY=True,
         DEBUG=True,
         TEMPLATE_DEBUG=True,
         DATABASE_SUPPORTS_TRANSACTIONS=True,
@@ -49,7 +55,7 @@ def configure(db_url, **extra):
             "django.core.context_processors.request",
             "django.core.context_processors.media",
             'django.core.context_processors.csrf',
-            "cms.context_processors.media",
+            "cms.context_processors.cms_settings",
             "sekizai.context_processors.sekizai",
             "django.core.context_processors.static",
         ],
@@ -57,7 +63,9 @@ def configure(db_url, **extra):
             os.path.abspath(os.path.join(os.path.dirname(__file__), 'project', 'templates'))
         ],
         MIDDLEWARE_CLASSES=[
-        #    'debug_toolbar.middleware.DebugToolbarMiddleware',
+            #'debug_toolbar.middleware.DebugToolbarMiddleware',
+            'django.middleware.cache.UpdateCacheMiddleware',
+            'django.middleware.http.ConditionalGetMiddleware',
             'django.contrib.sessions.middleware.SessionMiddleware',
             'django.contrib.auth.middleware.AuthenticationMiddleware',
             'django.contrib.messages.middleware.MessageMiddleware',
@@ -65,13 +73,14 @@ def configure(db_url, **extra):
             'django.middleware.locale.LocaleMiddleware',
             'django.middleware.doc.XViewMiddleware',
             'django.middleware.common.CommonMiddleware',
-            'django.middleware.cache.FetchFromCacheMiddleware',
             'cms.middleware.language.LanguageCookieMiddleware',
             'cms.middleware.user.CurrentUserMiddleware',
             'cms.middleware.page.CurrentPageMiddleware',
             'cms.middleware.toolbar.ToolbarMiddleware',
+            'django.middleware.cache.FetchFromCacheMiddleware',
         ],
         INSTALLED_APPS=[
+            'debug_toolbar',
             'django.contrib.auth',
             'django.contrib.contenttypes',
             'django.contrib.sessions',
@@ -100,7 +109,6 @@ def configure(db_url, **extra):
             'cms.test_utils.project.pluginapp.plugins.extra_context',
             'cms.test_utils.project.pluginapp.plugins.meta',
             'cms.test_utils.project.pluginapp.plugins.one_thing',
-
             'cms.test_utils.project.fakemlng',
             'cms.test_utils.project.fileapp',
             'cms.test_utils.project.objectpermissionsapp',
@@ -109,7 +117,6 @@ def configure(db_url, **extra):
             'reversion',
             'sekizai',
             'hvad',
-          #  'debug_toolbar',
         ],
         DEBUG_TOOLBAR_PATCH_SETTINGS = False,
         INTERNAL_IPS = ['127.0.0.1'],
@@ -200,7 +207,6 @@ def configure(db_url, **extra):
                 'TextPlugin', 'SnippetPlugin'),
                 'name': gettext("sidebar column")
             },
-
             'col_left': {
                 'plugins': ('FilePlugin', 'FlashPlugin', 'LinkPlugin', 'PicturePlugin',
                 'TextPlugin', 'SnippetPlugin', 'GoogleMapPlugin', 'MultiColumnPlugin', 'StylePlugin'),
@@ -210,9 +216,8 @@ def configure(db_url, **extra):
                 },
                 'plugin_labels': {
                     'LinkPlugin': gettext('Add a link')
-                }
+                },
             },
-
             'col_right': {
                 'plugins': ('FilePlugin', 'FlashPlugin', 'LinkPlugin', 'PicturePlugin',
                 'TextPlugin', 'SnippetPlugin', 'GoogleMapPlugin', 'MultiColumnPlugin', 'StylePlugin'),
@@ -307,10 +312,16 @@ def configure(db_url, **extra):
 
     if DJANGO_1_5:
         defaults['MIDDLEWARE_CLASSES'].append('django.middleware.transaction.TransactionMiddleware')
+
+    if django.VERSION >= (1, 5) and 'AUTH_USER_MODEL' in extra:
+        custom_user_app = 'cms.test_utils.project.' + extra['AUTH_USER_MODEL'].split('.')[0]
+        defaults['INSTALLED_APPS'].append(custom_user_app)
+
     settings._wrapped = empty
     defaults.update(extra)
     # add data from env
     extra_settings = os.environ.get("DJANGO_EXTRA_SETTINGS", None)
+    
     if extra_settings:
         from json import load, loads
 
@@ -319,6 +330,7 @@ def configure(db_url, **extra):
                 defaults.update(load(fobj))
         else:
             defaults.update(loads(extra_settings))
+    
     settings.configure(**defaults)
     from south.management.commands import patch_for_test_db_setup
 
