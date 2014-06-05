@@ -2,6 +2,7 @@
 from __future__ import with_statement
 from contextlib import contextmanager
 import inspect
+from itertools import chain
 import os
 
 from django.conf import settings
@@ -13,6 +14,8 @@ from sekizai.helpers import validate_template
 from cms import constants
 from cms.utils import get_cms_setting
 from cms.utils.compat.dj import get_app_paths
+from cms.utils.compat.type_checks import int_types
+
 
 SUCCESS = 1
 WARNING = 2
@@ -194,7 +197,7 @@ def check_i18n(output):
         for lang in getattr(settings, 'LANGUAGES', ()):
             if lang[0].find('_') > -1:
                 section.warn("LANGUAGES must contain valid language codes, not locales (e.g.: 'en-us' instead of 'en_US'): '%s' provided" % lang[0])
-        if isinstance(settings.SITE_ID, int):
+        if isinstance(settings.SITE_ID, int_types):
             for site, items in get_cms_setting('LANGUAGES').items():
                 if type(site) == int:
                     for lang in items:
@@ -242,7 +245,10 @@ def check_plugin_instances(output):
 @define_check
 def check_copy_relations(output):
     from cms.plugin_pool import plugin_pool
+    from cms.extensions import extension_pool
+    from cms.extensions.models import BaseExtension
     from cms.models.pluginmodel import CMSPlugin
+
     c_to_s = lambda klass: '%s.%s' % (klass.__module__, klass.__name__)
 
     def get_class(method_name, model):
@@ -270,10 +276,28 @@ def check_copy_relations(output):
                         c_to_s(plugin_class),
                         c_to_s(rel.model),
                     ))
+
+        for extension in chain(extension_pool.page_extensions, extension_pool.title_extensions):
+            if get_class('copy_relations', extension) is not BaseExtension:
+                # OK, looks like there is a 'copy_relations' defined in the
+                # extension... move along...
+                continue
+            for rel in extension._meta.many_to_many:
+                section.warn('%s has a many-to-many relation to %s,\n    but no "copy_relations" method defined.' % (
+                    c_to_s(extension),
+                    c_to_s(rel.related.parent_model),
+                ))
+            for rel in extension._meta.get_all_related_objects():
+                if rel.model != extension:
+                    section.warn('%s has a foreign key from %s,\n    but no "copy_relations" method defined.' % (
+                        c_to_s(extension),
+                        c_to_s(rel.model),
+                    ))
+
         if not section.warnings:
-            section.finish_success('All plugins have "copy_relations" method if needed.')
+            section.finish_success('All plugins and page/title extensions have "copy_relations" method if needed.')
         else:
-            section.finish_success('Some plugins do not define a "copy_relations" method.\nThis might lead to data loss when publishing or copying plugins.\nSee https://django-cms.readthedocs.org/en/latest/extending_cms/custom_plugins.html#handling-relations')
+            section.finish_success('Some plugins or page/title extensions do not define a "copy_relations" method.\nThis might lead to data loss when publishing or copying plugins/extensions.\nSee https://django-cms.readthedocs.org/en/latest/extending_cms/custom_plugins.html#handling-relations or https://django-cms.readthedocs.org/en/latest/extending_cms/extending_page_title.html#handling-relations.')
 
 
 def _load_all_templates(directory):

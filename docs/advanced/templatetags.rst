@@ -99,6 +99,17 @@ Example::
 
 
 
+
+
+
+If you want to make your static placeholder site specific (``django.contrib.sites``) you can add
+``site`` to the templatetag to achieve this.
+
+Example::
+
+    {% static_placeholder "footer" site or %}There is no content.{% endstatic_placeholder %}
+
+
 .. templatetag:: show_placeholder
 
 render_placeholder
@@ -124,6 +135,14 @@ only the english plugins:
 
     {% render_placeholder mymodel_instance.my_placeholder language 'en' %}
 
+.. versionadded:: 3.0.2
+    This template tag supports the ``as`` argument. With this you can assign the result
+    of the template tag to a new variable that you can use elsewhere in the template.
+
+    Example::
+
+        {% render_placeholder mymodel_instance.my_placeholder as placeholder_content %}
+        <p>{{ placeholder_content }}</p>
 
 
 show_placeholder
@@ -569,7 +588,7 @@ show_menu
 =========
 
 The ``show_menu`` tag renders the navigation of the current page. You can
-overwrite the appearance and the HTML if you add a ``cms/menu.html`` template
+overwrite the appearance and the HTML if you add a ``menu/menu.html`` template
 to your project or edit the one provided with django CMS. ``show_menu`` takes
 four optional parameters: ``start_level``, ``end_level``, ``extra_inactive``,
 and ``extra_active``.

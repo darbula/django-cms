@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import with_statement
 import itertools
+from cms.utils.conf import get_cms_setting
+from cms.toolbar.toolbar import CMSToolbar
+from sekizai.context import SekizaiContext
 import warnings
 
 from django.conf import settings
@@ -42,7 +45,7 @@ from cms.test_utils.util.context_managers import (SettingsOverride, UserLoginCon
 from cms.test_utils.util.mock import AttributeObject
 from cms.utils.compat.dj import force_unicode
 from cms.utils.placeholder import PlaceholderNoAction, MLNGPlaceholderActions, get_placeholder_conf
-from cms.utils.plugins import get_placeholders
+from cms.utils.plugins import get_placeholders, assign_plugins
 from cms.compat import get_user_model
 from cms.test_utils.project.objectpermissionsapp.models import UserObjectPermission
 
@@ -348,7 +351,7 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
         placeholder_de = title_de.page.placeholders.get(slot='col_left')
         add_plugin(placeholder_en, TextPlugin, 'en', body='en body')
 
-        class NoPushPopContext(Context):
+        class NoPushPopContext(SekizaiContext):
             def push(self):
                 pass
 
@@ -380,7 +383,16 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
             cache.clear()
             content_de = render_placeholder(placeholder_de, context_de)
             self.assertRegexpMatches(content_de, "^en body$")
-
+            context_de2 = NoPushPopContext()
+            request = self.get_request(language="de", page=page_en)
+            request.user = self.get_superuser()
+            request.toolbar = CMSToolbar(request)
+            request.toolbar.edit_mode = True
+            context_de2['request'] = request
+            del(placeholder_de._plugins_cache)
+            cache.clear()
+            content_de2 = render_placeholder(placeholder_de, context_de2)
+            self.assertFalse("en body" in content_de2)
             # remove the cached plugins instances
             del(placeholder_de._plugins_cache)
             cache.clear()
@@ -437,6 +449,44 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
             add_plugin(placeholder_en, TextPlugin, 'en', body='en body')
             content_en = render_placeholder(placeholder_en, context_en)
             self.assertRegexpMatches(content_en, "^en body$")
+
+    def test_plugins_discarded_with_language_fallback(self):
+        """
+        Tests side effect of language fallback: if fallback enabled placeholder
+        existed, it discards all other existing plugins
+        """
+        page_en = create_page('page_en', 'col_two.html', 'en')
+        create_title("de", "page_de", page_en)
+        placeholder_sidebar_en = page_en.placeholders.get(slot='col_sidebar')
+        placeholder_en = page_en.placeholders.get(slot='col_left')
+        add_plugin(placeholder_sidebar_en, TextPlugin, 'en', body='en body')
+
+        class NoPushPopContext(Context):
+            def push(self):
+                pass
+
+            pop = push
+
+        context_en = NoPushPopContext()
+        context_en['request'] = self.get_request(language="en", page=page_en)
+
+        conf = {
+            'col_left': {
+                'language_fallback': True,
+            },
+        }
+        with SettingsOverride(CMS_PLACEHOLDER_CONF=conf):
+            # call assign plugins first, as this is what is done in real cms life
+            # for all placeholders in a page at once
+            assign_plugins(context_en['request'],
+                           [placeholder_sidebar_en, placeholder_en], 'col_two.html')
+            # if the normal, non fallback enabled placeholder still has content
+            content_en = render_placeholder(placeholder_sidebar_en, context_en)
+            self.assertRegexpMatches(content_en, "^en body$")
+
+            # remove the cached plugins instances
+            del(placeholder_sidebar_en._plugins_cache)
+            cache.clear()
 
     def test_plugins_prepopulate(self):
         """ Tests prepopulate placeholder configuration """
@@ -541,7 +591,7 @@ class PlaceholderTestCase(CMSTestCase, UnittestCompatMixin):
             user = self.get_superuser()
             self.client.login(username=getattr(user, get_user_model().USERNAME_FIELD),
                               password=getattr(user, get_user_model().USERNAME_FIELD))
-            response = self.client.get("/en/?edit")
+            response = self.client.get("/en/?%s" % get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON'))
             for placeholder in page.placeholders.all():
                 self.assertContains(
                     response, "'placeholder_id': '%s'" % placeholder.pk)

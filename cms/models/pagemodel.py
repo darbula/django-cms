@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from logging import Logger
 from os.path import join
 
 from django.utils.timezone import now
@@ -151,6 +152,8 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         return state == PUBLISHER_STATE_DIRTY or state == PUBLISHER_STATE_PENDING
 
     def get_absolute_url(self, language=None, fallback=True):
+        if not language:
+            language = get_language()
         if self.is_home:
             return reverse('pages-root')
         path = self.get_path(language, fallback) or self.get_slug(language, fallback)
@@ -166,6 +169,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         check_title_slugs, overwrite_url on the moved page don't need any check
         as it remains the same regardless of the page position in the tree
         """
+        assert self.publisher_is_draft
         # do not mark the page as dirty after page moves
         self._publisher_keep_state = True
 
@@ -174,8 +178,14 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
         # make sure move_page does not break when using INHERIT template
         # and moving to a top level position
-        if (position in ('left', 'right') and not target.parent and is_inherited_template):
+        if position in ('left', 'right') and not target.parent and is_inherited_template:
             self.template = self.get_template()
+            if target.publisher_public_id and position == 'right':
+                public = target.publisher_public
+                if target.tree_id + 1 == public.tree_id:
+                    target = target.publisher_public
+                else:
+                    Logger.warn('mptt tree may need rebuilding: run manage.py cms fix-mptt')
         self.move_to(target, position)
 
         # fire signal
@@ -196,7 +206,6 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             cms_signals.page_moved.send(sender=Page, instance=public_page)
             public_page.save()
             page_utils.check_title_slugs(public_page)
-
         from cms.views import invalidate_cms_page_cache
         invalidate_cms_page_cache()
 
@@ -213,7 +222,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             # If an old title exists, overwrite. Otherwise create new
             title.pk = old_titles.pop(title.language, None)
             title.page = target
-            title.publisher_is_draft = False
+            title.publisher_is_draft = target.publisher_is_draft
             title.publisher_public_id = old_pk
             if published:
                 title.publisher_state = PUBLISHER_STATE_DEFAULT
@@ -298,9 +307,6 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         Note for issue #1166: when copying pages there is no need to check for
         conflicting URLs as pages are copied unpublished.
         """
-
-        page_copy = None
-
         pages = [self] + list(self.get_descendants().order_by('-rght'))
 
         site_reverse_ids = Page.objects.filter(site=site, reverse_id__isnull=False).values_list('reverse_id', flat=True)
@@ -405,14 +411,10 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                     ph.pk = None  # make a new instance
                     ph.save()
                     page.placeholders.add(ph)
-                    # update the page copy
-                    page_copy = page
                 if plugins:
                     copy_plugins_to(plugins, ph)
-
         # invalidate the menu for this site
         menu_pool.clear(site_id=site.pk)
-        return page_copy  # return the page_copy or None
 
     def save(self, no_signals=False, commit=True, **kwargs):
         """
@@ -467,7 +469,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
             delattr(self, '_publisher_keep_state')
 
         if not DJANGO_1_5 and 'cls' in kwargs:
-            del (kwargs['cls'])
+            del kwargs['cls']
         ret = super(Page, self).save_base(*args, **kwargs)
         return ret
 
@@ -490,12 +492,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         return True
 
     def is_published(self, language, force_reload=False):
-        from cms.models import Title
-
-        try:
-            return self.get_title_obj(language, False, force_reload=force_reload).published
-        except Title.DoesNotExist:
-            return False
+        return self.get_title_obj(language, False, force_reload=force_reload).published
 
     def toggle_in_navigation(self, set_to=None):
         '''
@@ -518,11 +515,9 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         return self.in_navigation
 
     def get_publisher_state(self, language, force_reload=False):
-        from cms.models import Title
-
         try:
             return self.get_title_obj(language, False, force_reload=force_reload).publisher_state
-        except Title.DoesNotExist:
+        except AttributeError:
             return None
 
     def set_publisher_state(self, language, state, published=None):
@@ -578,7 +573,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 # The target page now has a pk, so can be used as a target
             self._copy_titles(public_page, language, published)
             self._copy_contents(public_page, language)
-            #trigger home update
+            # trigger home update
             public_page.save()
             # invalidate the menu for this site
             menu_pool.clear(site_id=self.site_id)
@@ -615,13 +610,13 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
         # become published.
         publish_set = self.get_descendants().filter(title_set__published=True,
                                                     title_set__language=language).select_related('publisher_public')
+        from cms.models import Title
         for page in publish_set:
-            if page.publisher_public:
+            if page.publisher_public_id:
                 if not page.publisher_public.parent_id:
                     page.publisher_public.parent = page.parent.publisher_public
                     page.publisher_public.save()
                 if page.publisher_public.parent.is_published(language):
-                    from cms.models import Title
                     try:
                         public_title = Title.objects.get(page=page.publisher_public, language=language)
                     except Title.DoesNotExist:
@@ -750,8 +745,6 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
     def get_title_obj(self, language=None, fallback=True, version_id=None, force_reload=False):
         """Helper function for accessing wanted / current title.
         If wanted title doesn't exists, EmptyTitle instance will be returned.
-        If fallback=False is used, titlemodels.Title.DoesNotExist will be raised
-        when a language does not exist.
         """
         language = self._get_title_cache(language, fallback, version_id, force_reload)
         if language in self.title_cache:
@@ -901,10 +894,17 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                     if obj.__class__ == Title:
                         self.title_cache[obj.language] = obj
             else:
-                title = Title.objects.get_title(self, language, language_fallback=fallback)
-                if title:
+                titles = Title.objects.filter(page=self)
+                for title in titles:
                     self.title_cache[title.language] = title
-                    language = title.language
+                if language in self.title_cache:
+                    return language
+                else:
+                    if fallback:
+                        fallback_langs = i18n.get_fallback_languages(language)
+                        for lang in fallback_langs:
+                            if lang in self.title_cache:
+                                return lang
         return language
 
     def get_template(self):
@@ -972,7 +972,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
                 codename = '%s.view_%s' % (opts.app_label, opts.object_name.lower())
                 user_perm = user.has_perm(codename)
                 generic_perm = self.has_generic_permission(request, "view")
-                return (user_perm or generic_perm)
+                return user_perm or generic_perm
 
         else:
             if is_restricted or not get_cms_setting('PUBLIC_FOR') == 'all':
@@ -1052,7 +1052,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
             self.permission_user_cache = user
             setattr(self, att_name, has_generic_permission(
-                self.id, user, perm_type, self.site_id))
+                self.pk, user, perm_type, self.site_id))
             if getattr(self, att_name):
                 self.permission_edit_cache = True
         return getattr(self, att_name)
@@ -1068,7 +1068,7 @@ class Page(with_metaclass(PageMetaClass, MPTTModel)):
 
         This location can be customised using the CMS_PAGE_MEDIA_PATH setting
         """
-        return join(get_cms_setting('PAGE_MEDIA_PATH'), "%d" % self.id, filename)
+        return join(get_cms_setting('PAGE_MEDIA_PATH'), "%d" % self.pk, filename)
 
     def reload(self):
         """

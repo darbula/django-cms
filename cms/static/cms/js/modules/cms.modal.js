@@ -458,7 +458,7 @@ $(document).ready(function () {
 				var el = $('<div class="'+cls+' '+item.attr('class')+'">'+title+'</div>');
 					el.bind(that.click, function () {
 						if(item.is('input')) item[0].click();
-						if(item.is('a')) that._loadContent(item.attr('href'), title);
+						if(item.is('a')) that._loadContent(item.prop('href'), title);
 
 						// trigger only when blue action buttons are triggered
 						if(item.hasClass('default') || item.hasClass('deletelink')) {
@@ -505,6 +505,14 @@ $(document).ready(function () {
 
 			// attach load event for iframe to prevent flicker effects
 			iframe.bind('load', function () {
+				// check if iframe can be accessed
+				try {
+				    iframe.contents();
+				} catch (error) {
+				    CMS.API.Toolbar.showError('<strong>' + error + '</strong>');
+				    that.close();
+				}
+
 				// show messages in toolbar if provided
 				var messages = iframe.contents().find('.messagelist li');
 					if(messages.length) {
@@ -530,6 +538,9 @@ $(document).ready(function () {
 				// after iframe is loaded append css
 				contents.find('head').append($('<link rel="stylesheet" type="text/css" href="' + that.config.urls.static + that.options.urls.css_modal + '" />'));
 
+				// adding django hacks
+				contents.find('.viewsitelink').attr('target', '_top');
+
 				// set modal buttons
   				that._setButtons($(this));
 
@@ -539,8 +550,8 @@ $(document).ready(function () {
 				}
 
 				// when the window has been changed pressing the blue or red button, we need to run a reload check
-				if(that.saved) {
-					iframe.hide();
+				// also check that no delete-confirmation is required
+				if(that.saved && !contents.find('.delete-confirmation').length) {
 					that.reloadBrowser(window.location.href, false, true);
 				} else {
 					iframe.show();

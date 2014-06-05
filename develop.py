@@ -12,6 +12,7 @@ import warnings
 from docopt import docopt
 from django import VERSION
 from django.utils import autoreload
+from django.utils.encoding import force_text
 
 import cms
 from cms.test_utils.cli import configure
@@ -33,6 +34,7 @@ Usage:
     develop.py compilemessages
     develop.py makemessages
     develop.py pyflakes
+    develop.py authors
 
 Options:
     -h --help                   Show this screen.
@@ -163,7 +165,7 @@ def compilemessages():
 def makemessages():
     from django.core.management import call_command
     os.chdir('cms')
-    call_command('makemessages', locale='en')
+    call_command('makemessages', locale=('en',))
 
 
 def shell():
@@ -171,11 +173,42 @@ def shell():
     call_command('shell')
 
 
+def generate_authors():
+    print("Generating AUTHORS")
+
+    # Get our list of authors
+    print("Collecting author names")
+    r = subprocess.Popen(["git", "log", "--use-mailmap", "--format=%aN"], stdout=subprocess.PIPE)
+    seen_authors = []
+    authors = []
+    with open('AUTHORS', 'r') as f:
+        for line in f.readlines():
+            if line.startswith("*"):
+                author = force_text(line).strip("* \n")
+                if author.lower() not in seen_authors:
+                    seen_authors.append(author.lower())
+                    authors.append(author)
+    for author in r.stdout.readlines():
+        author = force_text(author).strip()
+        if author.lower() not in seen_authors:
+            seen_authors.append(author.lower())
+            authors.append(author)
+
+    # Sort our list of Authors by their case insensitive name
+    authors = sorted(authors, key=lambda x: x.lower())
+
+    # Write our authors to the AUTHORS file
+    print(u"Authors (%s):\n\n\n* %s" % (len(authors), u"\n* ".join(authors)))
+
+
 def main():
     args = docopt(__doc__, version=cms.__version__)
 
     if args['pyflakes']:
         return static_analysis.pyflakes()
+    
+    if args['authors']:
+        return generate_authors()
 
     # configure django
     warnings.filterwarnings(
@@ -260,7 +293,7 @@ def main():
             elif args['compilemessages']:
                 compilemessages()
             elif args['makemessages']:
-                compilemessages()
+                makemessages()
 
 
 if __name__ == '__main__':

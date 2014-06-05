@@ -307,10 +307,17 @@ class Placeholder(Tag):
         if not page or page == 'dummy':
             if nodelist:
                 return nodelist.render(context)
-
             return ''
-
-        content = get_placeholder_content(context, request, page, name, inherit, nodelist)
+        try:
+            content = get_placeholder_content(context, request, page, name, inherit, nodelist)
+        except PlaceholderNotFound:
+            if nodelist:
+                return nodelist.render(context)
+            raise
+        if not content:
+            if nodelist:
+                return nodelist.render(context)
+            return ''
         return content
 
     def get_name(self):
@@ -335,7 +342,7 @@ class RenderPlugin(InclusionTag):
         request = context['request']
         toolbar = getattr(request, 'toolbar', None)
         page = request.current_page
-        if toolbar.edit_mode and (not page or page.has_change_permission(request)):
+        if toolbar and toolbar.edit_mode and (not page or page.has_change_permission(request)):
             edit = True
         if edit:
             from cms.middleware.toolbar import toolbar_plugin_processor
@@ -597,6 +604,8 @@ class CMSToolbar(RenderBlock):
         toolbar = getattr(request, 'toolbar', None)
         if toolbar:
             toolbar.populate()
+        if request and 'cms-toolbar-login-error' in request.GET:
+            context['cms_toolbar_login_error'] = request.GET['cms-toolbar-login-error'] == '1'
         context['cms_version'] = __version__
         if toolbar and toolbar.show_toolbar:
             language = toolbar.toolbar_language
@@ -681,13 +690,21 @@ class CMSEditableObject(InclusionTag):
         Populate the contex with the requested attributes to trigger the changeform
         """
         request = context['request']
-        with force_language(request.toolbar.toolbar_language):
+        if hasattr(request, 'toolbar'):
+            lang = request.toolbar.toolbar_language
+        else:
+            lang = get_language()
+        with force_language(lang):
             extra_context = {}
             if edit_fields == 'changelist':
                 instance.get_plugin_name = u"%s %s list" % (smart_text(_('Edit')), smart_text(instance._meta.verbose_name))
                 extra_context['attribute_name'] = 'changelist'
             elif editmode:
                 instance.get_plugin_name = u"%s %s" % (smart_text(_('Edit')), smart_text(instance._meta.verbose_name))
+                if not context.get('attribute_name', None):
+                    # Make sure CMS.Plugin object will not clash in the frontend.
+                    extra_context['attribute_name'] = '-'.join(edit_fields) \
+                                                        if not isinstance('edit_fields', string_types) else edit_fields
             else:
                 instance.get_plugin_name = u"%s %s" % (smart_text(_('Add')), smart_text(instance._meta.verbose_name))
                 extra_context['attribute_name'] = 'add'
@@ -741,7 +758,10 @@ class CMSEditableObject(InclusionTag):
         Renders the requested attribute
         """
         extra_context = copy(context)
-        extra_context['content'] = getattr(instance, attribute, '')
+        if hasattr(instance, 'lazy_translation_getter'):
+            extra_context['content'] = instance.lazy_translation_getter(attribute, '')
+        else:
+            extra_context['content'] = getattr(instance, attribute, '')
         # This allow the requested item to be a method, a property or an
         # attribute
         if callable(extra_context['content']):
@@ -979,7 +999,6 @@ class StaticPlaceholderNode(Tag):
             if nodelist:
                 return nodelist.render(context)
             return ''
-            # TODO: caching?
         request = context.get('request', False)
         if not request:
             if nodelist:
@@ -988,35 +1007,48 @@ class StaticPlaceholderNode(Tag):
         if isinstance(code, StaticPlaceholder):
             static_placeholder = code
         else:
-            site = Site.objects.get_current()
-            static_placeholder, __ = StaticPlaceholder.objects.get_or_create(code=code, site_id=site.pk, defaults={'name': code,
-                'creation_method': StaticPlaceholder.CREATION_BY_TEMPLATE})
+            if 'site' in extra_bits:
+                site = Site.objects.get_current()
+                static_placeholder, __ = StaticPlaceholder.objects.get_or_create(code=code, site_id=site.pk, defaults={'name': code,
+                    'creation_method': StaticPlaceholder.CREATION_BY_TEMPLATE})
+            else:
+                static_placeholder, __ = StaticPlaceholder.objects.get_or_create(code=code, site_id__isnull=True, defaults={'name': code,
+                    'creation_method': StaticPlaceholder.CREATION_BY_TEMPLATE})
         if not hasattr(request, 'static_placeholders'):
             request.static_placeholders = []
         request.static_placeholders.append(static_placeholder)
-        if request.toolbar.edit_mode:
+        if hasattr(request, 'toolbar') and request.toolbar.edit_mode:
             placeholder = static_placeholder.draft
         else:
             placeholder = static_placeholder.public
         placeholder.is_static = True
         content = render_placeholder(placeholder, context, name_fallback=code, default=nodelist)
         return content
-
-
 register.tag(StaticPlaceholderNode)
 
 
-class RenderPlaceholder(Tag):
+class RenderPlaceholder(AsTag):
+    """
+    Render the content of the plugins contained in a placeholder.
+    The result can be assigned to a variable within the template's context by using the `as` keyword.
+    It behaves in the same way as the `PageAttribute` class, check its docstring for more details.
+    """
     name = 'render_placeholder'
     options = Options(
         Argument('placeholder'),
         Argument('width', default=None, required=False),
         'language',
         Argument('language', default=None, required=False),
+        'as',
+        Argument('varname', required=False, resolve=False)
     )
 
-    def render_tag(self, context, placeholder, width, language=None):
+    def get_value(self, context, **kwargs):
         request = context.get('request', None)
+        placeholder = kwargs.get('placeholder')
+        width = kwargs.get('width')
+        language = kwargs.get('language')
+
         if not request:
             return ''
         if not placeholder:
@@ -1025,4 +1057,6 @@ class RenderPlaceholder(Tag):
             request.placeholders = []
         request.placeholders.append(placeholder)
         return safe(placeholder.render(context, width, lang=language))
+
+
 register.tag(RenderPlaceholder)

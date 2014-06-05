@@ -4,6 +4,8 @@
 # 
 # Translators:
 # Alireza Savand <alireza.savand@gmail.com>, 2012
+# Aryan Baghi <aryan@baghi.id.ir>, 2014
+# Aryan Baghi <aryan@baghi.id.ir>, 2014
 # cafeclick <cafeclick@rocketmail.com>, 2013
 # matinm <moosaei.matin@aol.com>, 2013
 # mesterhope <mester.hope.oz@gmail.com>, 2014
@@ -11,9 +13,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: django-cms\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-03-06 13:45+0100\n"
-"PO-Revision-Date: 2014-03-06 12:45+0000\n"
-"Last-Translator: Patrick Lauber <patrick.lauber@divio.ch>\n"
+"POT-Creation-Date: 2014-04-03 11:35+0200\n"
+"PO-Revision-Date: 2014-04-10 17:40+0000\n"
+"Last-Translator: Aryan Baghi <aryan@baghi.id.ir>\n"
 "Language-Team: Persian (http://www.transifex.com/projects/p/django-cms/language/fa/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -29,12 +31,12 @@ msgid "Placeholder"
 msgstr "نگهدارنده"
 
 #: cms_toolbar.py:79
-msgid "Content"
-msgstr "محتوا"
-
-#: cms_toolbar.py:81
 msgid "Structure"
 msgstr "ساختار"
+
+#: cms_toolbar.py:81
+msgid "Content"
+msgstr "محتوا"
 
 #: cms_toolbar.py:99
 msgid "Users"
@@ -56,138 +58,138 @@ msgstr "مديريت"
 msgid "User settings"
 msgstr "تنظيمات كاربر"
 
-#: cms_toolbar.py:137 cms_toolbar.py:140 tests/toolbar.py:354
-#: tests/toolbar.py:360 tests/toolbar.py:366 tests/toolbar.py:372
+#: cms_toolbar.py:137 cms_toolbar.py:140 tests/toolbar.py:370
+#: tests/toolbar.py:376 tests/toolbar.py:382 tests/toolbar.py:388
 msgid "Logout"
 msgstr "خروج"
 
-#: cms_toolbar.py:144 admin/forms.py:76 admin/forms.py:173 admin/forms.py:210
+#: cms_toolbar.py:144 admin/forms.py:63 admin/forms.py:173 admin/forms.py:213
 #: models/settingmodels.py:12
 msgid "Language"
 msgstr "زبان"
 
-#: cms_toolbar.py:200
+#: cms_toolbar.py:205
 msgid "Publish changes"
 msgstr "انتشار تغییرات "
 
-#: cms_toolbar.py:202
+#: cms_toolbar.py:207
 msgid "Publish page now"
 msgstr "حالا صفحه را انتشار کن"
 
-#: cms_toolbar.py:251
-#, python-format
-msgid "Add %(language)s Translation"
-msgstr "اضافه كردن ترجمه ى  %(language)s"
-
-#: cms_toolbar.py:265
-#, python-format
-msgid "Delete %(language)s Translation"
-msgstr " %(language)s حذف ترجمه ى"
-
-#: cms_toolbar.py:274
-#, python-format
-msgid "Are you sure you want copy all plugins from %s?"
-msgstr "آيا شما نسبت به كپى بردارى تمامى افزونه ها از %s اطمينان داريد ؟"
-
-#: cms_toolbar.py:275
-#, python-format
-msgid "Copy all plugins from %s"
-msgstr "كپى بردارى تمامى افزونه ها از %s"
-
-#: cms_toolbar.py:285
-msgid "Pages"
-msgstr "صفحات"
-
-#: cms_toolbar.py:290 templates/admin/cms/page/permissions.html:6
-msgid "Page"
-msgstr "صفحه"
-
-#: cms_toolbar.py:292
-msgid "Add Page"
-msgstr ""
-
-#: cms_toolbar.py:294
-msgid "New Page"
-msgstr ""
-
-#: cms_toolbar.py:301
-msgid "New Sub Page"
-msgstr ""
-
-#: cms_toolbar.py:309
-msgid "Duplicate this Page"
-msgstr ""
-
-#: cms_toolbar.py:317
-msgid "Edit this Page"
-msgstr "ویرایش این صفحه"
-
-#: cms_toolbar.py:322 cms_toolbar.py:398
+#: cms_toolbar.py:229 cms_toolbar.py:338
 #: templates/admin/cms/page/tree/menu_item.html:51
 msgid "Page settings"
 msgstr "تنظيمات صفحه"
 
-#: cms_toolbar.py:326
+#: cms_toolbar.py:266
+#, python-format
+msgid "Add %(language)s Translation"
+msgstr "اضافه كردن ترجمه ى  %(language)s"
+
+#: cms_toolbar.py:280
+#, python-format
+msgid "Delete %(language)s Translation"
+msgstr " %(language)s حذف ترجمه ى"
+
+#: cms_toolbar.py:289
+#, python-format
+msgid "Are you sure you want copy all plugins from %s?"
+msgstr "آيا شما نسبت به كپى بردارى تمامى افزونه ها از %s اطمينان داريد ؟"
+
+#: cms_toolbar.py:290
+#, python-format
+msgid "Copy all plugins from %s"
+msgstr "كپى بردارى تمامى افزونه ها از %s"
+
+#: cms_toolbar.py:300
+msgid "Pages"
+msgstr "صفحات"
+
+#: cms_toolbar.py:305 templates/admin/cms/page/permissions.html:6
+msgid "Page"
+msgstr "صفحه"
+
+#: cms_toolbar.py:307
+msgid "Add Page"
+msgstr "افزودن صفحه"
+
+#: cms_toolbar.py:309
+msgid "New Page"
+msgstr "صفحه جدید"
+
+#: cms_toolbar.py:317
+msgid "New Sub Page"
+msgstr "صفحه زیرین جدید"
+
+#: cms_toolbar.py:325
+msgid "Duplicate this Page"
+msgstr "مضاعف سازی صفحه"
+
+#: cms_toolbar.py:333
+msgid "Edit this Page"
+msgstr "ویرایش این صفحه"
+
+#: cms_toolbar.py:342
 msgid "Templates"
 msgstr "الگوها"
 
-#: cms_toolbar.py:341 templates/admin/cms/page/tree/menu_item.html:52
+#: cms_toolbar.py:357 templates/admin/cms/page/tree/menu_item.html:52
 msgid "Advanced settings"
 msgstr "تنظیمات پیشرفته"
 
-#: cms_toolbar.py:348
+#: cms_toolbar.py:363
 msgid "Permissions"
 msgstr "دسترسى ها"
 
-#: cms_toolbar.py:354 admin/pageadmin.py:313
+#: cms_toolbar.py:367 admin/pageadmin.py:309
 msgid "Publishing dates"
-msgstr ""
+msgstr "تاریخ انتشار"
 
-#: cms_toolbar.py:360
+#: cms_toolbar.py:372
 msgid "Hide in navigation"
 msgstr "مخفى كردن در ناوبرى"
 
-#: cms_toolbar.py:362
+#: cms_toolbar.py:374
 msgid "Display in navigation"
 msgstr "نشان دادن در ناوبرى"
 
-#: cms_toolbar.py:368
+#: cms_toolbar.py:380
 msgid "Unpublish page"
 msgstr "نیاز به پایان انتشار"
 
-#: cms_toolbar.py:371
+#: cms_toolbar.py:383
 msgid "Publish page"
 msgstr "نیاز به انتشار"
 
-#: cms_toolbar.py:393
+#: cms_toolbar.py:405
 msgid "Delete page"
 msgstr "صفحه را پاک‌کن"
 
-#: cms_toolbar.py:405
+#: cms_toolbar.py:409
 msgid "Save as Page Type"
 msgstr ""
 
-#: cms_toolbar.py:417 templates/admin/cms/page/history/revision_header.html:10
+#: cms_toolbar.py:419 templates/admin/cms/page/history/revision_header.html:10
 msgid "History"
 msgstr "تاریخچه"
 
-#: cms_toolbar.py:432
+#: cms_toolbar.py:434
 msgid "Undo"
 msgstr "خنثى كردن"
 
-#: cms_toolbar.py:433
+#: cms_toolbar.py:435
 msgid "Redo"
 msgstr "دوباره انجام دادن"
 
-#: cms_toolbar.py:436
+#: cms_toolbar.py:438
 msgid "Are you sure you want to revert to live?"
 msgstr "آيا شما نسبت به احيا مطمئن هستيد ؟"
 
-#: cms_toolbar.py:437
+#: cms_toolbar.py:439
 msgid "Revert to live"
 msgstr "احيا"
 
-#: cms_toolbar.py:439
+#: cms_toolbar.py:441
 msgid "View history"
 msgstr "مشاهده تاریخچه"
 
@@ -203,54 +205,54 @@ msgstr "عمومی"
 msgid "There are no further settings for this plugin. Please press save."
 msgstr ""
 
-#: admin/forms.py:63
+#: admin/forms.py:64 admin/forms.py:174 admin/forms.py:214
+msgid "The current language of the content fields."
+msgstr "زبان جاری فیلدهای محتوا."
+
+#: admin/forms.py:65
+msgid "Page type"
+msgstr ""
+
+#: admin/forms.py:66
 msgid "Title"
 msgstr "عنوان"
 
-#: admin/forms.py:64
+#: admin/forms.py:67
 msgid "The default title"
 msgstr "عنوان پیش فرض"
 
-#: admin/forms.py:65
+#: admin/forms.py:68
 msgid "Slug"
 msgstr "نشانک (آدرس کوتاه صفحه)"
 
-#: admin/forms.py:66
+#: admin/forms.py:69
 msgid "The part of the title that is used in the URL"
 msgstr "قسمتی از عنوان که در آدرس اینترنتی استفاده می شود"
 
-#: admin/forms.py:67
+#: admin/forms.py:70
 msgid "Menu Title"
 msgstr "عنوان منو"
 
-#: admin/forms.py:68
+#: admin/forms.py:71
 msgid "Overwrite what is displayed in the menu"
 msgstr "بازنویسی در منوی نمایش داده شده"
 
-#: admin/forms.py:69
+#: admin/forms.py:72
 msgid "Page Title"
 msgstr "عنوان صفحه"
 
-#: admin/forms.py:70
+#: admin/forms.py:73
 msgid ""
 "Overwrites what is displayed at the top of your browser or in bookmarks"
 msgstr " عنوان مرورگر یا بوک مارک ها بازنویسی می شوند."
 
-#: admin/forms.py:72
+#: admin/forms.py:75
 msgid "Description meta tag"
 msgstr ""
 
-#: admin/forms.py:74
+#: admin/forms.py:77
 msgid "A description of the page used by search engines."
 msgstr "لیست کلمات کلیدی با ویرگول از هم جداشده که توسط موتورهای جستجو استفاده می شود."
-
-#: admin/forms.py:77 admin/forms.py:174 admin/forms.py:211
-msgid "The current language of the content fields."
-msgstr "زبان جاری فیلدهای محتوا."
-
-#: admin/forms.py:78
-msgid "Page type"
-msgstr ""
 
 #: admin/forms.py:134
 msgid "Another page with this slug already exists"
@@ -260,91 +262,92 @@ msgstr "صفحه دیگری با همین نشانک موجود است."
 msgid "Slug must not be empty."
 msgstr ""
 
-#: admin/forms.py:195
+#: admin/forms.py:196
 msgid "Application"
 msgstr "برنامه کاربردی"
 
-#: admin/forms.py:197
+#: admin/forms.py:198
 msgid "Hook application to this page."
 msgstr "اتصال برنامه کاربردی به این صفحه"
 
-#: admin/forms.py:198
+#: admin/forms.py:199
 msgid "Overwrite URL"
 msgstr "جاینوشت آدرس اینترنتی"
 
-#: admin/forms.py:199
+#: admin/forms.py:200
 msgid "Keep this field empty if standard path should be used."
 msgstr "اگر از آدرس استاندارد استفاده می-شود، این فیلد خالی گذارده شود."
 
-#: admin/forms.py:203
+#: admin/forms.py:204
 msgid "X Frame Options"
 msgstr ""
 
-#: admin/forms.py:204
+#: admin/forms.py:205
 msgid "Whether this page can be embedded in other pages or websites"
 msgstr ""
 
-#: admin/forms.py:208
+#: admin/forms.py:210
 msgid "Redirect"
 msgstr "تغییر مسیر"
 
-#: admin/forms.py:209
+#: admin/forms.py:211
 msgid "Redirects to this URL."
 msgstr "تغییرمسیر به این آدرس."
 
-#: admin/forms.py:238
+#: admin/forms.py:211
+msgid "Start typing..."
+msgstr "شروع به نوشتن ..."
+
+#: admin/forms.py:256
 msgid "A page with this reverse URL id exists already."
 msgstr "صفحه-ای با شناسه-ی این آدرس معکوس وجود دارد."
 
-#: admin/forms.py:245
+#: admin/forms.py:275
 msgid ""
-"You selected an apphook with an \"app_name\". You must enter a instance "
-"name."
+"You selected an apphook with an \"app_name\".\n"
+"                            You must enter a unique instance name."
 msgstr ""
 
-#: admin/forms.py:248
-msgid "If you enter an instance name you need an application url as well."
-msgstr ""
-
-#: admin/forms.py:254
+#: admin/forms.py:295
 msgid "A instance name with this name already exists."
 msgstr ""
 
-#: admin/forms.py:294 models/permissionmodels.py:60
+#: admin/forms.py:335 models/permissionmodels.py:60
 msgid "user"
 msgstr "کاربر"
 
-#: admin/forms.py:358
+#: admin/forms.py:399
 msgid ""
 "Add page permission requires also access to children, or descendants, "
 "otherwise added page can't be changed by its creator."
 msgstr " اجازه دسترسی به اضافه کردن صفحه اجازه دسترسی به صفحات زیرین، و یا صفحات فرزند، را نیز نیاز دارد؛ در غیر اینصورت خود ایجادکننده صفحه قابلیت تغییر آن را نخواهد داشت."
 
-#: admin/forms.py:363
+#: admin/forms.py:404
 msgid "Add page permission also requires edit page permission."
 msgstr "اجازه دسترسی به اضافه کردن صفحه همچنین نیاز به اجازه ویرایش صفحه را دارد."
 
-#: admin/forms.py:390
+#: admin/forms.py:431
 msgid "can_view"
 msgstr "can_view"
 
-#: admin/forms.py:401
+#: admin/forms.py:442
 msgid "Please select user or group first."
 msgstr "لطفا ابتدا کاربر یا گروه را انتخاب کنید."
 
-#: admin/forms.py:408 admin/forms.py:415 admin/forms.py:419
+#: admin/forms.py:449 admin/forms.py:456 admin/forms.py:460
 #: templates/admin/cms/usersettings/change_form.html:8
-#: templatetags/cms_tags.py:700
+#: templatetags/cms_tags.py:704
 msgid "Add"
 msgstr "اضافه"
 
-#: admin/forms.py:409 admin/forms.py:416 admin/forms.py:420
+#: admin/forms.py:450 admin/forms.py:457 admin/forms.py:461
 #: templates/cms/toolbar/toolbar.html:36
 #: templates/cms/toolbar/items/live_draft.html:7
 msgid "Change"
 msgstr "تغییر"
 
-#: admin/forms.py:410 admin/forms.py:417 admin/forms.py:421
+#: admin/forms.py:451 admin/forms.py:458 admin/forms.py:462
+#: templates/admin/cms/extensions/change_form.html:8
 #: templates/admin/cms/page/submit_row.html:8
 #: templates/admin/cms/page/plugin/delete_confirmation.html:9
 #: templates/admin/cms/page/tree/menu_item.html:66
@@ -352,59 +355,59 @@ msgstr "تغییر"
 msgid "Delete"
 msgstr "حذف"
 
-#: admin/forms.py:411
+#: admin/forms.py:452
 msgid "Recover (any) pages"
 msgstr "بازیابی (هر صفحه)"
 
-#: admin/forms.py:439
+#: admin/forms.py:480
 msgid "Notify user"
 msgstr "هشدار به کاربر"
 
-#: admin/forms.py:441
+#: admin/forms.py:482
 msgid ""
 "Send email notification to user about username or password change. Requires "
 "user email."
 msgstr "از طریق ایمیل به کاربر در مورد نام کاربری یا تغییر رمز عبور را مطلع کن. نیاز به ایمیل کاربر دارد."
 
-#: admin/forms.py:461
+#: admin/forms.py:502
 msgid "New password"
 msgstr "رمز عبور جدید"
 
-#: admin/forms.py:463
+#: admin/forms.py:504
 msgid "New password confirmation"
 msgstr "تایید رمز عبور جدید"
 
-#: admin/forms.py:488
+#: admin/forms.py:529
 msgid "Email notification requires valid email address."
 msgstr "هشدار از طریق ایمیل به ایمیل معتبر نیاز دارد."
 
-#: admin/forms.py:490
+#: admin/forms.py:531
 msgid ""
 "The permission to add new pages requires the permission to change pages!"
 msgstr "اجازه اضافه کردن صفحات جدید نیاز به اجازه ویرایش صفحه دارد!"
 
-#: admin/forms.py:492
+#: admin/forms.py:533
 msgid ""
 "The permission to add new users requires the permission to change users!"
 msgstr "اجازه ایجاد کاربران نیاز به اجازه تغییر کاربر دارد."
 
-#: admin/forms.py:494
+#: admin/forms.py:535
 msgid "To add permissions you also need to edit them!"
 msgstr "برای اضافه کردن دسترسی شما باید دسترسی ویرایش آنها را نیز داشته باشید."
 
-#: admin/pageadmin.py:310 templates/admin/cms/page/submit_row.html:10
+#: admin/pageadmin.py:306 templates/admin/cms/page/submit_row.html:10
 msgid "Advanced Settings"
 msgstr "تنظیمات پیشرفته"
 
-#: admin/pageadmin.py:319
+#: admin/pageadmin.py:315
 msgid "Change Permissions"
 msgstr "تغيير دسترسى ها"
 
-#: admin/pageadmin.py:367
+#: admin/pageadmin.py:363
 msgid "Add Page Type"
 msgstr ""
 
-#: admin/pageadmin.py:371
+#: admin/pageadmin.py:367
 msgid "Add Page Copy"
 msgstr ""
 
@@ -413,144 +416,152 @@ msgstr ""
 msgid "%(plugin_name)s plugin added to %(placeholder)s"
 msgstr "افزونه %(plugin_name)s به %(placeholder)s اضافه شد."
 
-#: admin/pageadmin.py:580
+#: admin/pageadmin.py:581
 #, python-format
 msgid "Copied plugins to %(placeholder)s"
 msgstr "افزونه ها درون  %(placeholder)s كپى بردارى شدند"
 
-#: admin/pageadmin.py:590
+#: admin/pageadmin.py:592
 #, python-format
 msgid ""
 "%(plugin_name)s plugin edited at position %(position)s in %(placeholder)s"
 msgstr "افزونه %(plugin_name)s در موقعیت %(position)s در %(placeholder)s تغییر کرد."
 
-#: admin/pageadmin.py:600
+#: admin/pageadmin.py:604
 msgid "Plugins were moved"
 msgstr "افزونه ها منتقل شده اند"
 
-#: admin/pageadmin.py:607
+#: admin/pageadmin.py:611
 #, python-format
 msgid ""
 "%(plugin_name)s plugin at position %(position)s in %(placeholder)s was "
 "deleted."
 msgstr "افزونه %(plugin_name)s در موقعیت %(position)s در %(placeholder)s حذف شد."
 
-#: admin/pageadmin.py:619
+#: admin/pageadmin.py:624
 #, python-format
 msgid "All plugins in the placeholder \"%(name)s\" were deleted."
 msgstr "تمامى افزونه هاى درون منفذ \"%(name)s\" پاك شده اند."
 
-#: admin/pageadmin.py:637
+#: admin/pageadmin.py:643
 msgid "You do not have permission to change pages."
 msgstr "شما فاقد مجوز لازم برای تغییر صفحات می باشید."
 
-#: admin/pageadmin.py:649
+#: admin/pageadmin.py:655
 msgid "Database error"
 msgstr "خطای پایگاه داده"
 
-#: admin/pageadmin.py:750 admin/pageadmin.py:791 admin/pageadmin.py:1071
-#: admin/pageadmin.py:1107
+#: admin/pageadmin.py:758 admin/pageadmin.py:825 admin/pageadmin.py:1154
+#: admin/pageadmin.py:1189
 msgid "You do not have permission to change this page"
 msgstr "شما اجازه ویرایش این صفحه را ندارید."
 
-#: admin/pageadmin.py:826
+#: admin/pageadmin.py:809 admin/pageadmin.py:875
+msgid "Page reverted but slug stays the same because of url collisions."
+msgstr ""
+
+#: admin/pageadmin.py:883
 msgid "You do not have permission to change the template"
 msgstr "شما فاقد مجوز لازم برای تغییر قالب می باشید."
 
-#: admin/pageadmin.py:830
+#: admin/pageadmin.py:887
 msgid "Template not valid"
 msgstr "قالب معتبر نمی باشد."
 
-#: admin/pageadmin.py:835
+#: admin/pageadmin.py:892
 #, python-format
 msgid "Template changed to %s"
 msgstr "قالب تغيير داده شد به %s"
 
-#: admin/pageadmin.py:837
+#: admin/pageadmin.py:895
 msgid "The template was successfully changed"
 msgstr "قالب با موفقیت تغییر یافت"
 
-#: admin/pageadmin.py:859
+#: admin/pageadmin.py:917
 msgid ""
 "Error! You don't have permissions to move this page. Please reload the page"
 msgstr "خطا! شما دسترسى لازم را براى انتقال اين صفحه نداريد."
 
-#: admin/pageadmin.py:863
+#: admin/pageadmin.py:922
 msgid "Page moved"
 msgstr "صفحه منتقل شده است"
 
-#: admin/pageadmin.py:909 admin/placeholderadmin.py:253
+#: admin/pageadmin.py:968 admin/placeholderadmin.py:253
 #: admin/placeholderadmin.py:299
 msgid "Language must be set to a supported language!"
 msgstr "یکی از زبانهای پشتیبانی شده را انتخاب کنید."
 
-#: admin/pageadmin.py:914 admin/placeholderadmin.py:318
+#: admin/pageadmin.py:973 admin/placeholderadmin.py:318
 msgid "You do not have permission to copy these plugins."
 msgstr "شما دسترسى لازم را براى كپى بردارى اين افزونه ها نداريد."
 
-#: admin/pageadmin.py:917
+#: admin/pageadmin.py:976
 #, python-format
 msgid "Copied plugins from %(source_language)s to %(target_language)s"
 msgstr "افزونه ها كپى بردارى شدند از %(source_language)s درون %(target_language)s"
 
-#: admin/pageadmin.py:967
+#: admin/pageadmin.py:1027
 msgid "You do not have permission to publish this page"
 msgstr "شما اجازه انجام این کار به انتشار این صفحه را ندارید"
 
-#: admin/pageadmin.py:982
+#: admin/pageadmin.py:1044 admin/pageadmin.py:1056
+msgid "Page not published! A parent page is not published yet."
+msgstr ""
+
+#: admin/pageadmin.py:1046
 msgid "The content was successfully published."
 msgstr "محتوا با موفقیت انتشار یافت ."
 
-#: admin/pageadmin.py:991
+#: admin/pageadmin.py:1058
 msgid "There was a problem publishing your content"
 msgstr "مشکلی در انتشار محتوای شما وجود دارد ."
 
-#: admin/pageadmin.py:1042
+#: admin/pageadmin.py:1122
 msgid "You do not have permission to unpublish this page"
-msgstr ""
+msgstr "شما اجازه تغییر این صفحه از حالت انتشار به عدم انتشار را ندارید"
 
-#: admin/pageadmin.py:1044
+#: admin/pageadmin.py:1124
 msgid "This page was never published"
-msgstr ""
+msgstr "این صفحه تا به حال منتشر نشده"
 
-#: admin/pageadmin.py:1047
+#: admin/pageadmin.py:1127
 #, python-format
 msgid "The %(language)s page \"%(page)s\" was successfully unpublished"
 msgstr ""
 
-#: admin/pageadmin.py:1075
+#: admin/pageadmin.py:1158
 #, python-format
 msgid "The page \"%s\" was successfully reverted."
 msgstr "صفحه ى \"%s\" با موفقيت بازگردانده شد."
 
-#: admin/pageadmin.py:1111
+#: admin/pageadmin.py:1193
 #, python-format
 msgid "%(name)s object with primary key %(key)r does not exist."
 msgstr "شی %(name)s با کلید اصلی %(key)r موجود نیست."
 
-#: admin/pageadmin.py:1117
+#: admin/pageadmin.py:1199
 msgid "There only exists one translation for this page"
 msgstr "تنها یک ترجمه برای این صفحه موجود است."
 
-#: admin/pageadmin.py:1146
+#: admin/pageadmin.py:1228
 #, python-format
 msgid "Title and plugins with language %(language)s was deleted"
 msgstr "عنوان و افزونه-ها به زبان %(language)s حذف شدند."
 
-#: admin/pageadmin.py:1168 admin/placeholderadmin.py:505
+#: admin/pageadmin.py:1251 admin/placeholderadmin.py:505
 #: admin/placeholderadmin.py:545
 msgid "Are you sure?"
 msgstr "آیا مطمئن هستید؟"
 
-#: admin/pageadmin.py:1208
+#: admin/pageadmin.py:1291
 msgid "You do not have permission to change this page's in_navigation status"
 msgstr "شما اجازه  تغییر وضعیت in_navigation این صفحه را ندارید"
 
-#: admin/pageadmin.py:1232
+#: admin/pageadmin.py:1315
 msgid "Page Types"
 msgstr ""
 
-#: admin/pageadmin.py:1285
+#: admin/pageadmin.py:1371
 msgid "You do not have permission to edit this page"
 msgstr "شما اجازه ویرایش این صفحه را ندارید."
 
@@ -581,7 +592,7 @@ msgstr ""
 
 #: admin/placeholderadmin.py:80
 msgid "You do not have permission to edit this item"
-msgstr ""
+msgstr "شما اجازه ویرایش این صفحه را ندارید."
 
 #: admin/placeholderadmin.py:229
 msgid "You do not have permission to add a plugin"
@@ -589,7 +600,7 @@ msgstr "شما فاقد دسترسى لازم براى اضافه كردن اف�
 
 #: admin/placeholderadmin.py:255
 msgid "Parent plugin language must be same as language!"
-msgstr ""
+msgstr "زبان افزونه ی پدر باید یکسان باشد! "
 
 #: admin/placeholderadmin.py:353
 msgid "You do not have permission to edit this plugin"
@@ -634,7 +645,7 @@ msgstr "جزئیات کاربر"
 msgid "Groups"
 msgstr "گروهها"
 
-#: admin/useradmin.py:48 templates/cms/toolbar/items/login.html:5
+#: admin/useradmin.py:48 templates/cms/toolbar/items/login.html:6
 msgid "Password"
 msgstr "رمز عبور"
 
@@ -642,15 +653,15 @@ msgstr "رمز عبور"
 msgid "Copy permissions"
 msgstr "اختیارات کپی"
 
-#: forms/fields.py:29
+#: forms/fields.py:30
 msgid "Select a valid site"
 msgstr "یک سایت معتبر انتخاب کنید."
 
-#: forms/fields.py:30
+#: forms/fields.py:31
 msgid "Select a valid page"
 msgstr "یک صفحه معتبر انتخاب کنید"
 
-#: forms/widgets.py:141
+#: forms/widgets.py:209
 msgid "Add Another"
 msgstr "اضافه کردن یکی دیگر"
 
@@ -756,15 +767,15 @@ msgstr ""
 
 #: models/pagemodel.py:104
 msgid "Deny"
-msgstr ""
+msgstr "رد کردن"
 
 #: models/pagemodel.py:105
 msgid "Only this website"
-msgstr ""
+msgstr "فقط این وب سایت"
 
 #: models/pagemodel.py:106
 msgid "Allow"
-msgstr ""
+msgstr "پذیرفتن"
 
 #: models/pagemodel.py:122 models/permissionmodels.py:114
 #: models/titlemodels.py:27
@@ -777,9 +788,9 @@ msgstr "صفحات"
 
 #: models/pagemodel.py:813
 msgid "Empty"
-msgstr ""
+msgstr "خالی"
 
-#: models/pagemodel.py:927
+#: models/pagemodel.py:934
 msgid "default"
 msgstr "پیشفرض"
 
@@ -935,46 +946,50 @@ msgstr "تنظيم كاربر"
 msgid "user settings"
 msgstr "تنظيمات كاربر"
 
-#: models/static_placeholder.py:27
+#: models/static_placeholder.py:28
 msgid "by template"
 msgstr "بر اساس الگو"
 
-#: models/static_placeholder.py:28
+#: models/static_placeholder.py:29
 msgid "by code"
 msgstr "بر اساس كد"
 
-#: models/static_placeholder.py:31
+#: models/static_placeholder.py:32
 msgid "static placeholder name"
 msgstr ""
 
-#: models/static_placeholder.py:32
+#: models/static_placeholder.py:33
 msgid ""
 "Descriptive name to identify this static placeholder. Not displayed to "
 "users."
 msgstr ""
 
-#: models/static_placeholder.py:34
+#: models/static_placeholder.py:35
 msgid "placeholder code"
 msgstr ""
 
-#: models/static_placeholder.py:35
+#: models/static_placeholder.py:36
 msgid "To render the static placeholder in templates."
 msgstr ""
 
-#: models/static_placeholder.py:36
+#: models/static_placeholder.py:37
 msgid "placeholder content"
 msgstr ""
 
-#: models/static_placeholder.py:40
+#: models/static_placeholder.py:41
 msgid "creation_method"
 msgstr ""
 
-#: models/static_placeholder.py:46
+#: models/static_placeholder.py:47
 msgid "static placeholder"
 msgstr ""
 
-#: models/static_placeholder.py:47
+#: models/static_placeholder.py:48
 msgid "static placeholders"
+msgstr ""
+
+#: models/static_placeholder.py:64
+msgid "A static placeholder with the same site and code already exists"
 msgstr ""
 
 #: models/titlemodels.py:16 models/titlemodels.py:17 models/titlemodels.py:19
@@ -1017,6 +1032,14 @@ msgstr "بازفرستادن"
 msgid "is published"
 msgstr "منتشرشده"
 
+#: templates/admin/cms/extensions/change_form.html:5
+#: templates/admin/cms/page/change_form.html:74
+#: templates/admin/cms/page/submit_row.html:5
+#: templates/admin/cms/page/tree/copy_premissions.html:19
+#: templates/admin/cms/usersettings/change_form.html:16
+msgid "Save"
+msgstr "ذخیره"
+
 #: templates/admin/cms/mail/base.html:55
 #, python-format
 msgid "Log in to administration <a href=\"%(login_url)s\">here</a>."
@@ -1042,28 +1065,21 @@ msgstr "رمز عبور:"
 msgid "Change a page"
 msgstr "تغییر یک صفحه"
 
-#: templates/admin/cms/page/change_form.html:49
+#: templates/admin/cms/page/change_form.html:44
 msgid "Please correct the error below."
 msgid_plural "Please correct the errors below."
 msgstr[0] "لطفا خطاهای زیر را تصحیح کنید."
 
-#: templates/admin/cms/page/change_form.html:67
+#: templates/admin/cms/page/change_form.html:62
 msgid "All permissions"
 msgstr "تمامی اختیارات"
 
-#: templates/admin/cms/page/change_form.html:68
-#: templates/admin/cms/page/tree/base.html:94
+#: templates/admin/cms/page/change_form.html:63
+#: templates/admin/cms/page/tree/base.html:80
 msgid "Loading..."
 msgstr "در حال بارگذاری"
 
-#: templates/admin/cms/page/change_form.html:79
-#: templates/admin/cms/page/submit_row.html:5
-#: templates/admin/cms/page/tree/copy_premissions.html:19
-#: templates/admin/cms/usersettings/change_form.html:16
-msgid "Save"
-msgstr "ذخیره"
-
-#: templates/admin/cms/page/change_form.html:80
+#: templates/admin/cms/page/change_form.html:75
 #: templates/admin/cms/page/submit_row.html:15
 msgid "Save and continue editing"
 msgstr "ذخیره و ادامه ویرایش"
@@ -1161,7 +1177,7 @@ msgstr "دکمه‌ی ذخیره در زیر را بزنید تا این نگا�
 
 #: templates/admin/cms/page/plugin/error_form.html:4
 msgid "Edit model"
-msgstr ""
+msgstr "حالت ویرایش"
 
 #: templates/admin/cms/page/tree/base.html:4
 msgid "List of pages"
@@ -1169,57 +1185,65 @@ msgstr "فهرست صفحات"
 
 #: templates/admin/cms/page/tree/base.html:12
 msgid "Search"
-msgstr ""
+msgstr "جستجو"
 
-#: templates/admin/cms/page/tree/base.html:53
+#: templates/admin/cms/page/tree/base.html:54
 msgid "Successfully moved"
 msgstr "با موفقیت جابجا شد"
 
-#: templates/admin/cms/page/tree/base.html:65
+#: templates/admin/cms/page/tree/base.html:55
+msgid "Changes within the tree might require a refresh."
+msgstr ""
+
+#: templates/admin/cms/page/tree/base.html:56
 msgid "An error occured. Please reload the page"
 msgstr "خطایی رخ داد. صفحه با دوباره بارگذاری کنید."
 
-#: templates/admin/cms/page/tree/base.html:87
+#: templates/admin/cms/page/tree/base.html:57
+#, python-format
+msgid "Are you sure you want to %%s this page?"
+msgstr ""
+
+#: templates/admin/cms/page/tree/base.html:73
 #, python-format
 msgid "Recover deleted %(name)s"
 msgstr "%(name)s پاک‌شده را بازیابی کن"
 
-#: templates/admin/cms/page/tree/base.html:90
+#: templates/admin/cms/page/tree/base.html:76
 #, python-format
 msgid "Add %(name)s"
 msgstr "اضافه‌کردن %(name)s"
 
-#: templates/admin/cms/page/tree/base.html:102
+#: templates/admin/cms/page/tree/base.html:88
 msgid "Pages on:"
 msgstr "صفحات در:"
 
-#: templates/admin/cms/page/tree/base.html:123
+#: templates/admin/cms/page/tree/base.html:108
 msgid "Filter:"
 msgstr "فیلتر:"
 
-#: templates/admin/cms/page/tree/base.html:123
+#: templates/admin/cms/page/tree/base.html:108
 msgid "on"
 msgstr "فعال"
 
-#: templates/admin/cms/page/tree/base.html:123
+#: templates/admin/cms/page/tree/base.html:108
 msgid "off"
 msgstr "غیر‌فعال"
 
-#: templates/admin/cms/page/tree/base.html:125
+#: templates/admin/cms/page/tree/base.html:110
 msgid "Filter"
 msgstr "فیلتر"
 
 #: templates/admin/cms/page/tree/base_header.html:10
-msgid "in menu"
-msgstr ""
+msgid "Menu"
+msgstr "منو"
 
 #: templates/admin/cms/page/tree/base_header.html:11
-msgid "actions"
+msgid "Actions"
 msgstr "کارها"
 
 #: templates/admin/cms/page/tree/base_header.html:12
-#: templates/admin/cms/page/tree/menu_item.html:71
-msgid "info"
+msgid "Info"
 msgstr "اطلاعات"
 
 #: templates/admin/cms/page/tree/base_header.html:26
@@ -1286,9 +1310,17 @@ msgstr "عدم انتشار"
 msgid "Publish"
 msgstr "انتشار"
 
+#: templates/admin/cms/page/tree/menu_item.html:42
+msgid "in menu"
+msgstr ""
+
+#: templates/admin/cms/page/tree/menu_item.html:42
+msgid "not in menu"
+msgstr "در منو نباشد"
+
 #: templates/admin/cms/page/tree/menu_item.html:51
 msgid "page settings"
-msgstr ""
+msgstr "تنظيمات صفحه"
 
 #: templates/admin/cms/page/tree/menu_item.html:53
 #: templates/cms/toolbar/dragitem.html:12
@@ -1322,13 +1354,17 @@ msgstr "برداشت"
 msgid "delete"
 msgstr "حذف"
 
+#: templates/admin/cms/page/tree/menu_item.html:71
+msgid "info"
+msgstr "اطلاعات"
+
 #: templates/admin/cms/page/tree/menu_item.html:75
 msgid "is restricted"
 msgstr ""
 
 #: templates/admin/cms/page/tree/menu_item.html:76
 msgid "last change by"
-msgstr ""
+msgstr "آخرین تغییر توسط"
 
 #: templates/cms/toolbar/clipboard.html:24
 msgid "Empty Clipboard"
@@ -1348,7 +1384,7 @@ msgstr "كپى بردارى از همه"
 
 #: templates/cms/toolbar/dragbar.html:12
 msgid "Copy from"
-msgstr ""
+msgstr "کپی کردن از"
 
 #: templates/cms/toolbar/dragbar.html:14
 msgid "Empty all"
@@ -1358,8 +1394,8 @@ msgstr "خالى كردن همه"
 msgid "Drop a plugin here"
 msgstr "افزونه را در اين مكان قرار دهيد"
 
-#: templates/cms/toolbar/dragitem.html:14 templatetags/cms_tags.py:695
-#: templatetags/cms_tags.py:698
+#: templates/cms/toolbar/dragitem.html:14 templatetags/cms_tags.py:699
+#: templatetags/cms_tags.py:702
 msgid "Edit"
 msgstr "ویرایش"
 
@@ -1369,11 +1405,11 @@ msgstr "افزونه‌های موجود"
 
 #: templates/cms/toolbar/dragitem_menu.html:10
 msgid "Scroll for more"
-msgstr ""
+msgstr "برای مشاهده بیشتر اسکرول کنید"
 
 #: templates/cms/toolbar/toolbar.html:8
 msgid "Double-click to edit"
-msgstr ""
+msgstr "برای ویرایش دو بار کلیک کنید"
 
 #: templates/cms/toolbar/toolbar.html:33
 #: templates/cms/toolbar/items/live_draft.html:4
@@ -1395,49 +1431,49 @@ msgstr "شروع"
 
 #: templates/cms/toolbar/toolbar.html:118
 msgid "This page has no preview!"
-msgstr ""
+msgstr "این صفحه هیچ پیش نمایشی ندارد!"
 
 #: templates/cms/toolbar/toolbar.html:119
 msgid "It is being redirected to:"
 msgstr ""
 
-#: templates/cms/toolbar/toolbar_javascript.html:41
+#: templates/cms/toolbar/toolbar_javascript.html:42
 #, python-format
 msgid "Development version using django CMS %(cms_version)s"
 msgstr ""
 
-#: templates/cms/toolbar/toolbar_javascript.html:42
+#: templates/cms/toolbar/toolbar_javascript.html:43
 msgid "Cancel"
 msgstr "لغو"
 
-#: templates/cms/toolbar/toolbar_javascript.html:43
-msgid "The following error occured:"
-msgstr ""
-
 #: templates/cms/toolbar/toolbar_javascript.html:44
-msgid "Action successfull... reloading."
-msgstr ""
+msgid "The following error occured:"
+msgstr "خطای مقابل رخ داده است:"
 
 #: templates/cms/toolbar/toolbar_javascript.html:45
+msgid "Action successfull... reloading."
+msgstr "حرکت موفقیت آمیز بود ... در حال برگزاری مجدد."
+
+#: templates/cms/toolbar/toolbar_javascript.html:46
 msgid "Are you sure you want to delete this plugin?"
 msgstr "آیا شما مطمئن هستید می‌خواهید این افزونه را پاک کنید؟"
 
-#: templates/cms/toolbar/toolbar_javascript.html:46
+#: templates/cms/toolbar/toolbar_javascript.html:47
 msgid ""
 "Publishing this page will activate it within the menu and set it live. Are "
 "you sure?"
 msgstr ""
 
-#: templates/cms/toolbar/toolbar_javascript.html:64
+#: templates/cms/toolbar/toolbar_javascript.html:65
 msgid ""
 "<strong>Login failed.</strong> Please check your credentials and try again."
 msgstr "<strongورود شما ناموفق بود.</strong> لطفاً ورودى هاى خود را دوباره بازبينى كنيد."
 
-#: templates/cms/toolbar/toolbar_javascript.html:65
+#: templates/cms/toolbar/toolbar_javascript.html:66
 msgid "This page has unpublished changes."
 msgstr "اين صفحه داراى تغييرات منتشر نشده است."
 
-#: templates/cms/toolbar/items/login.html:4 toolbar/toolbar.py:21
+#: templates/cms/toolbar/items/login.html:5 toolbar/toolbar.py:21
 msgid "Username"
 msgstr "کاربر"
 
@@ -1447,25 +1483,25 @@ msgstr "مدیریت محتوای جنگو"
 
 #: templatetags/cms_admin.py:74
 msgid "unpublished changes"
-msgstr ""
+msgstr "تغییرات منتشر نشده"
 
 #: templatetags/cms_admin.py:77
 msgid "published"
 msgstr "منتشر‌شده"
 
-#: templatetags/cms_admin.py:84
+#: templatetags/cms_admin.py:86
 msgid "unpublished parent"
 msgstr ""
 
-#: templatetags/cms_admin.py:87
+#: templatetags/cms_admin.py:89
 msgid "unpublished"
-msgstr ""
+msgstr "منتشر نشده"
 
-#: templatetags/cms_admin.py:90
+#: templatetags/cms_admin.py:92
 msgid "no content"
-msgstr ""
+msgstr "بدون محتوا"
 
-#: templatetags/cms_admin.py:185 templatetags/cms_admin.py:191
+#: templatetags/cms_admin.py:188 templatetags/cms_admin.py:194
 #, python-format
 msgid "<span>%(icon)s</span>"
 msgstr ""
@@ -1482,64 +1518,64 @@ msgid ""
 "`. The URL of the request was: http://%(host)s%(path)s"
 msgstr "يك تگ قالب نميتواند صفحه را با استفاده از آرگومان هاى ارجاعى پيدا كند `%(page_lookup)s⏎ `. آدرس درخواست شده: http://%(host)s%(path)s"
 
-#: test_utils/cli.py:130 test_utils/cli.py:141
+#: test_utils/cli.py:129 test_utils/cli.py:140
 msgid "English"
 msgstr "انگلیسی"
 
-#: test_utils/cli.py:131 test_utils/cli.py:153 test_utils/cli.py:176
+#: test_utils/cli.py:130 test_utils/cli.py:152 test_utils/cli.py:175
 msgid "French"
 msgstr "فرانسوی"
 
-#: test_utils/cli.py:132 test_utils/cli.py:147 test_utils/cli.py:170
-#: test_utils/cli.py:189
+#: test_utils/cli.py:131 test_utils/cli.py:146 test_utils/cli.py:169
+#: test_utils/cli.py:188
 msgid "German"
 msgstr "آلمانی"
 
-#: test_utils/cli.py:133 test_utils/cli.py:158
+#: test_utils/cli.py:132 test_utils/cli.py:157
 msgid "Brazilian Portuguese"
 msgstr "پرتقالى كشور برزيل"
 
-#: test_utils/cli.py:134 test_utils/cli.py:183
+#: test_utils/cli.py:133 test_utils/cli.py:182
 msgid "Dutch"
 msgstr "هلندی"
 
-#: test_utils/cli.py:199
+#: test_utils/cli.py:198
 msgid "two columns"
 msgstr "دو ستون"
 
-#: test_utils/cli.py:200
+#: test_utils/cli.py:199
 msgid "three columns"
 msgstr "سه ستون"
 
-#: test_utils/cli.py:201
+#: test_utils/cli.py:200
 msgid "navigation examples"
 msgstr "مرور نمونه ها"
 
-#: test_utils/cli.py:209
+#: test_utils/cli.py:208
 msgid "sidebar column"
 msgstr "رنگ زمینه seekbar"
 
-#: test_utils/cli.py:215
+#: test_utils/cli.py:213
 msgid "left column"
 msgstr "رنگ زمینه seekbar"
 
-#: test_utils/cli.py:220
+#: test_utils/cli.py:218
 msgid "Add a link"
-msgstr ""
+msgstr "افزودن لینک"
 
-#: test_utils/cli.py:227
+#: test_utils/cli.py:224
 msgid "right column"
 msgstr "رنگ زمینه seekbar"
 
 #: test_utils/project/extensionapp/cms_toolbar.py:46
-msgid "Page Extension"
-msgstr ""
-
-#: test_utils/project/extensionapp/cms_toolbar.py:82
 msgid "Title Extension"
 msgstr ""
 
-#: test_utils/project/objectpermissionsapp/models.py:47
+#: test_utils/project/extensionapp/cms_toolbar.py:82
+msgid "Page Extension"
+msgstr ""
+
+#: test_utils/project/objectpermissionsapp/models.py:46
 msgid "object ID"
 msgstr ""
 
@@ -1571,16 +1607,16 @@ msgstr "ابزار نمونه 2"
 msgid "Namespaced App"
 msgstr "Namespaced ابزار"
 
-#: test_utils/project/sampleapp/cms_toolbar.py:17
+#: test_utils/project/sampleapp/cms_toolbar.py:21
 #: test_utils/project/sampleapp/views.py:21
 msgid "Category"
 msgstr "موضوع"
 
-#: test_utils/project/sampleapp/cms_toolbar.py:18
+#: test_utils/project/sampleapp/cms_toolbar.py:22
 msgid "Categories"
 msgstr "موضوعات"
 
-#: test_utils/project/sampleapp/cms_toolbar.py:19
+#: test_utils/project/sampleapp/cms_toolbar.py:23
 msgid "Add Category"
 msgstr "افزودن موضوع"
 
@@ -1616,7 +1652,7 @@ msgstr "^حساب كاربرى/$"
 msgid "Change Category"
 msgstr "تغيير موضوع"
 
-#: utils/conf.py:82
+#: utils/conf.py:83
 msgid "Inherit the template of the nearest ancestor"
 msgstr "الگوی نزدیک-ترین والد را در داشته باش."
 

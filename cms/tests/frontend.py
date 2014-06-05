@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+import sys
+import datetime
+from cms.utils.conf import get_cms_setting
+from cms.apphook_pool import apphook_pool
+from cms.exceptions import AppAlreadyRegistered
+from cms.test_utils.project.placeholderapp.models import Example1
+from django.core.urlresolvers import clear_url_caches
+from cms.appresolver import clear_app_resolvers
+from cms.test_utils.project.placeholderapp.cms_app import Example1App
 from django.core.cache import cache
 import os
 import time
@@ -117,11 +126,35 @@ class CMSLiveTests(LiveServerTestCase, CMSTestCase):
         finally:
             self.accept_next_alert = True
 
+    def reload_urls(self):
+        """
+         Code borrowed from ApphooksTestCase
+        """
+        from django.conf import settings
+
+        url_modules = [
+            'cms.urls',
+            # TODO: Add here intermediary modules which may
+            #       include() the 'cms.urls' if it isn't included
+            #       directly in the root urlconf.
+            # '...',
+            'cms.test_utils.project.second_cms_urls_for_apphook_tests',
+            'cms.test_utils.project.urls_for_apphook_tests',
+            settings.ROOT_URLCONF,
+        ]
+
+        clear_app_resolvers()
+        clear_url_caches()
+
+        for module in url_modules:
+            if module in sys.modules:
+                del sys.modules[module]
+
 
 class ToolbarBasicTests(CMSLiveTests):
 
     def setUp(self):
-        self.user = self._create_user('admin', True, True, True)
+        self.user = self.get_superuser()
         Site.objects.create(domain='example.org', name='example.org')
         self.base_url = self.live_server_url
         self.driver.implicitly_wait(2)
@@ -130,7 +163,7 @@ class ToolbarBasicTests(CMSLiveTests):
     def test_toolbar_login(self):
         User = get_user_model()
         create_page('Home', 'simple.html', 'en', published=True)
-        url = '%s/?edit' % self.live_server_url
+        url = '%s/?%s' % (self.live_server_url, get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON'))
         self.assertTrue(User.objects.all().count(), 1)
         self.driver.get(url)
         self.assertRaises(NoSuchElementException, self.driver.find_element_by_class_name, 'cms_toolbar-item_logout')
@@ -141,6 +174,56 @@ class ToolbarBasicTests(CMSLiveTests):
         password_input.submit()
         self.wait_page_loaded()
         self.assertTrue(self.driver.find_element_by_class_name('cms_toolbar-item-navigation'))
+
+    def test_toolbar_login_view(self):
+        User = get_user_model()
+        create_page('Home', 'simple.html', 'en', published=True)
+        ex1 = Example1.objects.create(
+            char_1='char_1', char_2='char_1', char_3='char_3', char_4='char_4',
+            date_field=datetime.datetime.now()
+        )
+        try:
+            apphook_pool.register(Example1App)
+        except AppAlreadyRegistered:
+            pass
+        self.reload_urls()
+        create_page('apphook', 'simple.html', 'en', published=True,
+                    apphook=Example1App)
+
+
+        url = '%s/%s/?%s' % (self.live_server_url, 'apphook/detail/%s' % ex1.pk, get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON'))
+        self.driver.get(url)
+        username_input = self.driver.find_element_by_id("id_cms-username")
+        username_input.send_keys(getattr(self.user, User.USERNAME_FIELD))
+        password_input = self.driver.find_element_by_id("id_cms-password")
+        password_input.send_keys("what")
+        password_input.submit()
+        self.wait_page_loaded()
+        self.assertTrue(self.driver.find_element_by_class_name('cms_error'))
+
+    def test_toolbar_login_cbv(self):
+        User = get_user_model()
+        try:
+            apphook_pool.register(Example1App)
+        except AppAlreadyRegistered:
+            pass
+        self.reload_urls()
+        create_page('Home', 'simple.html', 'en', published=True)
+        ex1 = Example1.objects.create(
+            char_1='char_1', char_2='char_1', char_3='char_3', char_4='char_4',
+            date_field=datetime.datetime.now()
+        )
+        create_page('apphook', 'simple.html', 'en', published=True,
+                    apphook=Example1App)
+        url = '%s/%s/?%s' % (self.live_server_url, 'apphook/detail/class/%s' % ex1.pk, get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON'))
+        self.driver.get(url)
+        username_input = self.driver.find_element_by_id("id_cms-username")
+        username_input.send_keys(getattr(self.user, User.USERNAME_FIELD))
+        password_input = self.driver.find_element_by_id("id_cms-password")
+        password_input.send_keys("what")
+        password_input.submit()
+        self.wait_page_loaded()
+        self.assertTrue(self.driver.find_element_by_class_name('cms_error'))
 
     def test_basic_add_pages(self):
         with SettingsOverride(DEBUG=True):
@@ -203,7 +286,7 @@ class PlaceholderBasicTests(CMSLiveTests, SettingsOverrideTestCase):
         super(PlaceholderBasicTests, self).setUp()
 
     def _login(self):
-        url = '%s/?edit' % self.live_server_url
+        url = '%s/?%s' % (self.live_server_url, get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON'))
         self.driver.get(url)
         
         self.assertRaises(NoSuchElementException, self.driver.find_element_by_class_name, 'cms_toolbar-item_logout')
@@ -218,14 +301,14 @@ class PlaceholderBasicTests(CMSLiveTests, SettingsOverrideTestCase):
 
     def test_copy_from_language(self):
         self._login()
-        self.driver.get('%s/it/?edit' % self.live_server_url)
+        self.driver.get('%s/it/?%s' % (self.live_server_url, get_cms_setting('CMS_TOOLBAR_URL__EDIT_ON')))
 
         # check if there are no plugins in italian version of the page
 
         italian_plugins = self.page.placeholders.all()[0].get_plugins_list('it')
         self.assertEqual(len(italian_plugins), 0)
 
-        build_button = self.driver.find_element_by_css_selector('.cms_toolbar-item-cms-mode-switcher a[href="?build"]')
+        build_button = self.driver.find_element_by_css_selector('.cms_toolbar-item-cms-mode-switcher a[href="?%s"]' % get_cms_setting('CMS_TOOLBAR_URL__BUILD'))
         build_button.click()
 
         submenu = self.driver.find_element_by_css_selector('.cms_dragbar .cms_submenu')
@@ -253,7 +336,7 @@ class PlaceholderBasicTests(CMSLiveTests, SettingsOverrideTestCase):
         self.assertEqual(CMSPlugin.objects.count(), 1)
         self._login()
 
-        build_button = self.driver.find_element_by_css_selector('.cms_toolbar-item-cms-mode-switcher a[href="?build"]')
+        build_button = self.driver.find_element_by_css_selector('.cms_toolbar-item-cms-mode-switcher a[href="?%s"]' % get_cms_setting('CMS_TOOLBAR_URL__BUILD'))
         build_button.click()
 
         cms_draggable = self.driver.find_element_by_css_selector('.cms_draggable:nth-child(1)')

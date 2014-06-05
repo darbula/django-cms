@@ -58,6 +58,8 @@ def pre_delete_page(instance, **kwargs):
 def post_delete_page(instance, **kwargs):
     update_home(instance, **kwargs)
     apphook_post_delete_page_checker(instance)
+    from cms.views import invalidate_cms_page_cache
+    invalidate_cms_page_cache()
 
 
 def post_moved_page(instance, **kwargs):
@@ -87,7 +89,6 @@ def update_home(instance, **kwargs):
                                                                          publisher_public__published=True).count():
                 return
             home_pk = instance.pk
-            #instance.is_home = True
         for page in qs.filter(site=instance.site_id, is_home=True).exclude(pk=home_pk):
             if instance.pk == page.pk:
                 instance.is_home = False

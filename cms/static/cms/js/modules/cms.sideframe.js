@@ -92,21 +92,27 @@ $(document).ready(function () {
 			var language = 'language=' + CMS.config.request.language;
 			var page_id = 'page_id=' + CMS.config.request.page_id;
 			var holder = this.sideframe.find('.cms_sideframe-frame');
-			// var initialized = false;
+			var initialized = false;
 
 			// push required params if defined
-			var params = [];
-			if(CMS.config.request.language) params.push(language);
-			if(CMS.config.request.page_id) params.push(page_id);
+			// only apply params on tree view
+			if(url.indexOf(CMS.config.request.tree) >= 0) {
+				var params = [];
+				if(CMS.config.request.language) params.push(language);
+				if(CMS.config.request.page_id) params.push(page_id);
+				url = this._url(url, params);
+			}
 
-			var iframe = $('<iframe src="'+this._url(url, params)+'" class="" frameborder="0" />');
+			var iframe = $('<iframe src="'+url+'" class="" frameborder="0" />');
 				iframe.hide();
 			var width = this.settings.sideframe.position || this.options.sideframeWidth;
 
 			// attach load event to iframe
 			iframe.bind('load', function () {
+				var contents = iframe.contents();
+
 				// after iframe is loaded append css
-				iframe.contents().find('head').append($('<link rel="stylesheet" type="text/css" href="' + that.config.urls.static + that.options.urls.css_sideframe + '" />'));
+				contents.find('head').append($('<link rel="stylesheet" type="text/css" href="' + that.config.urls.static + that.options.urls.css_sideframe + '" />'));
 				// remove loader
 				that.sideframe.find('.cms_sideframe-frame').removeClass('cms_loader');
 				// than show
@@ -120,13 +126,16 @@ $(document).ready(function () {
 				that.settings = that.setSettings(that.settings);
 
 				// bind extra events
-				iframe.contents().find('body').bind(that.click, function () {
+				contents.find('body').bind(that.click, function () {
 					$(document).trigger(that.click);
 				});
 
 				// attach reload event
-				// if(initialized) that.reloadBrowser(false, false, true);
-				// initialized = true;
+				if(initialized) that.reloadBrowser(false, false, true);
+				initialized = true;
+
+				// adding django hacks
+				contents.find('.viewsitelink').attr('target', '_top');
 			});
 
 			// cancel animation if sideframe is already shown
@@ -134,7 +143,13 @@ $(document).ready(function () {
 				// sideframe is already open
 				insertHolder(iframe);
 				// reanimate the frame
-				if(parseInt(this.sideframe.css('width')) <= width) this._show(width, animate);
+				if(this.sideframe.outerWidth() < width) {
+					// The user has performed an action that requires the
+					// sideframe to be shown, this intent outweighs any
+					// previous intent to minimize the frame.
+					this.settings.sideframe.hidden = false;
+					this._show(width, animate);
+				}
 			} else {
 				// load iframe after frame animation is done
 				setTimeout(function () {
