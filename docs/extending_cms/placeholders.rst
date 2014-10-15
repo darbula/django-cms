@@ -70,8 +70,8 @@ Admin Integration
 .. versionchanged:: 3.0
 
 If you install this model in the admin application, you have to use the mixin
-:class:`~cms.admin.placeholderadmin.PlaceholderAdminMixin` together with
-:class:`~django.contrib.admin.ModelAdmin` so that the interface renders
+:class:`~cms.admin.placeholderadmin.PlaceholderAdminMixin` together with,
+and must precede, :class:`~django.contrib.admin.ModelAdmin` so that the interface renders
 correctly::
 
     from django.contrib import admin
@@ -95,7 +95,7 @@ I18N Placeholders
 =================
 
 Out of the box :class:`~cms.admin.placeholderadmin.PlaceholderAdminMixin` supports multiple
-languages and will display language tabs. If you extend yout model admin class derived from
+languages and will display language tabs. If you extend your model admin class derived from
 `PlaceholderAdminMixin` and overwrite `change_form_template` be sure to have a look at
 'admin/placeholders/placeholder/change_form.html' on how to display the language tabs.
 

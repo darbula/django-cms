@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
+from django.contrib.sites.models import Site
+from django.db import models
+from django.db.models import Q
+
 from cms.cache.permissions import get_permission_cache, set_permission_cache
 from cms.exceptions import NoPermissionsException
 from cms.models.query import PageQuerySet
 from cms.publisher import PublisherManager
 from cms.utils import get_cms_setting
+from cms.utils.compat.dj import user_related_query_name
 from cms.utils.i18n import get_fallback_languages
-from cms.compat import user_related_query_name
-from django.contrib.sites.models import Site
-from django.db import models
-from django.db.models import Q
 
 
 class PageManager(PublisherManager):
@@ -61,7 +62,7 @@ class PageManager(PublisherManager):
         return self.get_query_set().valid_targets(page_id, request, perms, page)
 
     def published(self, site=None):
-        return self.get_query_set().published(site)
+        return self.get_query_set().published(site=site)
 
     def expired(self):
         return self.drafts().expired()
@@ -199,9 +200,10 @@ class TitleManager(PublisherManager):
                 value = cleaned_data.get(name, None)
                 setattr(obj, name, value)
         if page.has_advanced_settings_permission(request):
-            overwrite_url = cleaned_data.get('overwrite_url', None)
-            obj.has_url_overwrite = bool(overwrite_url)
-            obj.path = overwrite_url
+            if 'overwrite_url' in cleaned_data:
+                overwrite_url = cleaned_data.get('overwrite_url', None)
+                obj.has_url_overwrite = bool(overwrite_url)
+                obj.path = overwrite_url
             for field in advanced_fields:
                 if field in form.base_fields:
                     value = cleaned_data.get(field, None)

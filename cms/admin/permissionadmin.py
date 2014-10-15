@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
 from copy import deepcopy
+from django.contrib import admin
+from django.contrib.admin import site
+from django.contrib.auth.admin import UserAdmin
+from django.utils.translation import ugettext as _
 
 from cms.admin.forms import GlobalPagePermissionAdminForm, PagePermissionInlineAdminForm, ViewRestrictionInlineAdminForm
 from cms.exceptions import NoPermissionsException
 from cms.models import Page, PagePermission, GlobalPagePermission, PageUser
+from cms.utils.compat.dj import get_user_model
 from cms.utils.conf import get_cms_setting
 from cms.utils.helpers import classproperty
 from cms.utils.permissions import get_user_permission_level
-from cms.compat import get_user_model
-from django.contrib import admin
-from django.utils.translation import ugettext as _
 
 PERMISSION_ADMIN_INLINES = []
 
+user_model = get_user_model()
+admin_class = UserAdmin
+for model, admin_instance in site._registry.items():
+    if model == user_model:
+        admin_class = admin_instance.__class__
 
 class TabularInline(admin.TabularInline):
     pass
@@ -115,8 +122,10 @@ class GlobalPagePermissionAdmin(admin.ModelAdmin):
     list_filter = ['user', 'group', 'can_change', 'can_delete', 'can_publish', 'can_change_permissions']
 
     form = GlobalPagePermissionAdminForm
-
-    search_fields = ('user__'+get_user_model().USERNAME_FIELD, 'user__first_name', 'user__last_name', 'group__name')
+    search_fields = []
+    for field in admin_class.search_fields:
+        search_fields.append("user__%s" % field)
+    search_fields.append('group__name')
 
     exclude = []
 

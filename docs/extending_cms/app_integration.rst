@@ -357,7 +357,7 @@ hook like this::
 If you use app namespace you will need to give all your view ``context`` a ``current_app``::
 
   def my_view(request):
-      current_app = resolve(request.path).namespace
+      current_app = resolve(request.path_info).namespace
       context = RequestContext(request, current_app=current_app)
       return render_to_response("my_templace.html", context_instance=context)
 
@@ -393,7 +393,7 @@ as an argument. You can do so by looking up the `current_app` attribute of
 the request instance::
 
     def myviews(request):
-        current_app = resolve(request.path).namespace
+        current_app = resolve(request.path_info).namespace
 
         reversed_url = reverse('myapp_namespace:app_main',
                 current_app=current_app)
@@ -404,11 +404,64 @@ Or, if you are rendering a plugin, of the context instance::
     class MyPlugin(CMSPluginBase):
         def render(self, context, instance, placeholder):
             # ...
-            current_app = resolve(request.path).namespace
+            current_app = resolve(request.path_info).namespace
             reversed_url = reverse('myapp_namespace:app_main',
                     current_app=current_app)
             # ...
 
+.. _apphook_permissions:
+
+Apphook Permissions
+-------------------
+
+By default all apphooks have the same permissions set as the page they are assigned to.
+So if you set login required on page the attached apphook and all it's urls have the same
+requirements.
+
+To disable this behavior set ``permissions = False`` on your apphook::
+
+    class SampleApp(CMSApp):
+        name = _("Sample App")
+        urls = ["project.sampleapp.urls"]
+        permissions = False
+
+
+
+If you still want some of your views to have permission checks you can enable them via a decorator:
+
+``cms.utils.decorators.cms_perms``
+
+Here is a simple example::
+
+    from cms.utils.decorators import cms_perms
+
+    @cms_perms
+    def my_view(request, **kw):
+        ...
+
+
+If you have your own permission check in your app, or just don't want to wrap some nested apps
+with CMS permission decorator, then use ``exclude_permissions`` property of apphook::
+
+    class SampleApp(CMSApp):
+        name = _("Sample App")
+        urls = ["project.sampleapp.urls"]
+        permissions = True
+        exclude_permissions = ["some_nested_app"]
+
+
+For example, django-oscar_ apphook integration needs to be used with exclude permissions of dashboard app,
+because it use `customizable access function`__. So, your apphook in this case will looks like this::
+
+    class OscarApp(CMSApp):
+        name = _("Oscar")
+        urls = [
+            patterns('', *application.urls[0])
+        ]
+        exclude_permissions = ['dashboard']
+
+.. _django-oscar: https://github.com/tangentlabs/django-oscar
+.. __: https://github.com/tangentlabs/django-oscar/blob/0.7.2/oscar/apps/dashboard/nav.py#L57
 
 Automatically restart server on apphook changes
 -----------------------------------------------
@@ -433,6 +486,7 @@ should not be needed.
 
     The signal is fired **after** a request. If you change something via API
     you need a request for the signal to fire.
+
 
 .. _integration_modifiers:
 
